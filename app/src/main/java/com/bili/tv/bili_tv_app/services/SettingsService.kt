@@ -1,0 +1,130 @@
+package com.bili.tv.bili_tv_app.services
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+
+val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
+object SettingsService {
+
+    private lateinit var dataStore: DataStore<Preferences>
+
+    // Keys
+    private object Keys {
+        // Playback settings
+        val DEFAULT_QUALITY = intPreferencesKey("default_quality")
+        val AUTO_PLAY = booleanPreferencesKey("auto_play")
+        val AUTO_NEXT = booleanPreferencesKey("auto_next")
+        val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+        val DANMAKU_ENABLED = booleanPreferencesKey("danmaku_enabled")
+        val DANMAKU_OPACITY = floatPreferencesKey("danmaku_opacity")
+        val DANMAKU_FONT_SIZE = floatPreferencesKey("danmaku_font_size")
+        val DANMAKU_DENSITY = floatPreferencesKey("danmaku_density")
+
+        // Interface settings
+        val SPLASH_ANIMATION = booleanPreferencesKey("splash_animation")
+        val SHOW_FPS = booleanPreferencesKey("show_fps")
+        val THEME_MODE = intPreferencesKey("theme_mode")
+
+        // Storage settings
+        val CACHE_SIZE = longPreferencesKey("cache_size")
+        val AUTO_CLEAR = booleanPreferencesKey("auto_clear")
+
+        // Plugin settings
+        val AD_FILTER_ENABLED = booleanPreferencesKey("ad_filter_enabled")
+        val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
+        val DANMAKU_ENHANCE_ENABLED = booleanPreferencesKey("danmaku_enhance_enabled")
+    }
+
+    suspend fun init(context: Context? = null) {
+        if (!::dataStore.isInitialized && context != null) {
+            dataStore = context.settingsDataStore
+        }
+    }
+
+    private fun ensureInitialized() {
+        if (!::dataStore.isInitialized) {
+            throw IllegalStateException("SettingsService not initialized. Call init() first.")
+        }
+    }
+
+    // Playback settings
+    var defaultQuality: Int
+        get() = runBlocking { dataStore.data.first()[Keys.DEFAULT_QUALITY] ?: 80 } // Default 1080P
+        set(value) = runBlocking { dataStore.edit { it[Keys.DEFAULT_QUALITY] = value } }
+
+    var autoPlay: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.AUTO_PLAY] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.AUTO_PLAY] = value } }
+
+    var autoNext: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.AUTO_NEXT] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.AUTO_NEXT] = value } }
+
+    var playbackSpeed: Float
+        get() = runBlocking { dataStore.data.first()[Keys.PLAYBACK_SPEED] ?: 1.0f }
+        set(value) = runBlocking { dataStore.edit { it[Keys.PLAYBACK_SPEED] = value } }
+
+    var danmakuEnabled: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.DANMAKU_ENABLED] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.DANMAKU_ENABLED] = value } }
+
+    var danmakuOpacity: Float
+        get() = runBlocking { dataStore.data.first()[Keys.DANMAKU_OPACITY] ?: 0.7f }
+        set(value) = runBlocking { dataStore.edit { it[Keys.DANMAKU_OPACITY] = value } }
+
+    var danmakuFontSize: Float
+        get() = runBlocking { dataStore.data.first()[Keys.DANMAKU_FONT_SIZE] ?: 25f }
+        set(value) = runBlocking { dataStore.edit { it[Keys.DANMAKU_FONT_SIZE] = value } }
+
+    var danmakuDensity: Float
+        get() = runBlocking { dataStore.data.first()[Keys.DANMAKU_DENSITY] ?: 1.0f }
+        set(value) = runBlocking { dataStore.edit { it[Keys.DANMAKU_DENSITY] = value } }
+
+    // Interface settings
+    var splashAnimationEnabled: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.SPLASH_ANIMATION] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.SPLASH_ANIMATION] = value } }
+
+    var showFps: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.SHOW_FPS] ?: false }
+        set(value) = runBlocking { dataStore.edit { it[Keys.SHOW_FPS] = value } }
+
+    var themeMode: Int
+        get() = runBlocking { dataStore.data.first()[Keys.THEME_MODE] ?: 0 } // 0 = dark
+        set(value) = runBlocking { dataStore.edit { it[Keys.THEME_MODE] = value } }
+
+    // Storage settings
+    var cacheSize: Long
+        get() = runBlocking { dataStore.data.first()[Keys.CACHE_SIZE] ?: 500L } // MB
+        set(value) = runBlocking { dataStore.edit { it[Keys.CACHE_SIZE] = value } }
+
+    var autoClear: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.AUTO_CLEAR] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.AUTO_CLEAR] = value } }
+
+    // Plugin settings
+    var adFilterEnabled: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.AD_FILTER_ENABLED] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.AD_FILTER_ENABLED] = value } }
+
+    var sponsorBlockEnabled: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.SPONSOR_BLOCK_ENABLED] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.SPONSOR_BLOCK_ENABLED] = value } }
+
+    var danmakuEnhanceEnabled: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.DANMAKU_ENHANCE_ENABLED] ?: true }
+        set(value) = runBlocking { dataStore.edit { it[Keys.DANMAKU_ENHANCE_ENABLED] = value } }
+
+    // Flow getters for reactive updates
+    fun getDefaultQualityFlow(): Flow<Int> = dataStore.data.map { it[Keys.DEFAULT_QUALITY] ?: 80 }
+    fun getAutoPlayFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_PLAY] ?: true }
+    fun getDanmakuEnabledFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.DANMAKU_ENABLED] ?: true }
+    fun getSplashAnimationFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.SPLASH_ANIMATION] ?: true }
+}
