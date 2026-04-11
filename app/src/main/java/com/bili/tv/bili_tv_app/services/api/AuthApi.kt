@@ -3,23 +3,22 @@ package com.bili.tv.bili_tv_app.services.api
 import com.bili.tv.bili_tv_app.models.LoginQRCodeResponse
 import com.bili.tv.bili_tv_app.models.LoginStatusResponse
 import com.google.gson.Gson
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
-class AuthApi {
+class AuthApi private constructor() {
 
-    private val client: OkHttpClient
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
     private val gson = Gson()
-    private val baseUrl = "https://passport.bilibili.com"
 
     companion object {
-        private const val APP_KEY = "4409e2ce8ffd12b8"
-
         @Volatile
         private var instance: AuthApi? = null
-
         fun getInstance(): AuthApi {
             return instance ?: synchronized(this) {
                 instance ?: AuthApi().also { instance = it }
@@ -27,65 +26,33 @@ class AuthApi {
         }
     }
 
-    init {
-        client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
-
     suspend fun getQRCode(): LoginQRCodeResponse {
-        val url = "$baseUrl/x/passport-login/web/qrcode/generate?appkey=$APP_KEY"
+        val url = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
         val request = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://passport.bilibili.com")
             .build()
-
         return try {
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             gson.fromJson(body, LoginQRCodeResponse::class.java)
         } catch (e: Exception) {
-            e.printStackTrace()
             LoginQRCodeResponse(code = -1, message = e.message ?: "Network error")
         }
     }
 
     suspend fun checkQRCodeStatus(qrcodeKey: String): LoginStatusResponse {
-        val url = "$baseUrl/x/passport-login/web/qrcode/poll?appkey=$APP_KEY&qrcode_key=$qrcodeKey"
+        val url = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=$qrcodeKey"
         val request = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://passport.bilibili.com")
             .build()
-
         return try {
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             gson.fromJson(body, LoginStatusResponse::class.java)
         } catch (e: Exception) {
-            e.printStackTrace()
             LoginStatusResponse(code = -1, message = e.message ?: "Network error")
-        }
-    }
-
-    suspend fun getLoginInfo(mid: Long): UserInfoResponse {
-        val url = "https://api.bilibili.com/x/web-interface/card?mid=$mid"
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://space.bilibili.com")
-            .build()
-
-        return try {
-            val response = client.newCall(request).execute()
-            val body = response.body?.string()
-            gson.fromJson(body, UserInfoResponse::class.java)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            UserInfoResponse(code = -1, message = e.message ?: "Network error")
         }
     }
 
@@ -94,16 +61,28 @@ class AuthApi {
         val request = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://www.bilibili.com")
             .addHeader("Cookie", cookies)
             .build()
-
         return try {
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             gson.fromJson(body, UserInfoResponse::class.java)
         } catch (e: Exception) {
-            e.printStackTrace()
+            UserInfoResponse(code = -1, message = e.message ?: "Network error")
+        }
+    }
+
+    suspend fun getLoginInfo(mid: Long): UserInfoResponse {
+        val url = "https://api.bilibili.com/x/web-interface/card?mid=$mid"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .build()
+        return try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
+            gson.fromJson(body, UserInfoResponse::class.java)
+        } catch (e: Exception) {
             UserInfoResponse(code = -1, message = e.message ?: "Network error")
         }
     }
@@ -113,11 +92,7 @@ class AuthApi {
         val message: String = "",
         val data: UserInfoData? = null
     )
-
-    data class UserInfoData(
-        val card: UserCard? = null
-    )
-
+    data class UserInfoData(val card: UserCard? = null)
     data class UserCard(
         val mid: Long = 0,
         val name: String = "",
@@ -126,30 +101,6 @@ class AuthApi {
         val levelInfo: LevelInfo? = null,
         val vipInfo: VipInfo? = null
     )
-
-    data class LevelInfo(
-        val currentLevel: Int = 0,
-        val currentMin: Int = 0,
-        val currentExp: Int = 0,
-        val nextExp: Int = 0
-    )
-
-    data class VipInfo(
-        val type: Int = 0,
-        val status: Int = 0,
-        val dueDate: Long = 0,
-        val vipPayType: Int = 0,
-        val themeType: Int = 0,
-        val label: Label? = null
-    )
-
-    data class Label(
-        val path: String = "",
-        val text: String = "",
-        val labelTheme: String = "",
-        val textColor: String = "",
-        val bgStyle: Int = 0,
-        val bgColor: String = "",
-        val borderColor: String = ""
-    )
+    data class LevelInfo(val currentLevel: Int = 0)
+    data class VipInfo(val type: Int = 0, val status: Int = 0)
 }

@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.KeyEvent
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -64,6 +65,10 @@ class PlayerFragment : Fragment() {
 
     // 播放进度
     private var seekTo: Long = 0
+
+    // 触摸手势
+    private var touchStartY = 0f
+    private val swipeMinDistance = 100f  // 最小滑动距离（像素）
 
     companion object {
         private const val ARG_BVID = "bvid"
@@ -131,6 +136,7 @@ class PlayerFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupPlayer()
         setupKeyListener()
+        setupTouchGesture()
         if (isLiveMode) {
             loadLiveStream()
             preloadLiveLists()
@@ -203,7 +209,12 @@ class PlayerFragment : Fragment() {
     }
 
     private fun setupKeyListener() {
-        binding.playerView.setOnKeyListener { _, keyCode, event ->
+        // 让根布局获得焦点，并拦截所有按键
+        binding.root.isFocusable = true
+        binding.root.isFocusableInTouchMode = true
+        binding.root.requestFocus()
+        
+        binding.root.setOnKeyListener { _, keyCode, event ->
             if (event.action == KeyEvent.ACTION_DOWN) {
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastKeyPressTime < keyDebounceMs) {
@@ -213,40 +224,60 @@ class PlayerFragment : Fragment() {
 
                 when (keyCode) {
                     KeyEvent.KEYCODE_DPAD_LEFT -> {
-                        if (isLiveMode) {
-                            switchFollowLiveRoom(-1)
-                        } else {
-                            switchEpisode(-1)
-                        }
-                        return@setOnKeyListener true
+                        if (isLiveMode) switchFollowLiveRoom(-1) else switchEpisode(-1)
+                        true
                     }
                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        if (isLiveMode) {
-                            switchFollowLiveRoom(1)
-                        } else {
-                            switchEpisode(1)
-                        }
-                        return@setOnKeyListener true
+                        if (isLiveMode) switchFollowLiveRoom(1) else switchEpisode(1)
+                        true
                     }
                     KeyEvent.KEYCODE_DPAD_UP -> {
-                        if (isLiveMode) {
-                            switchRecommendLiveRoom(1)
-                        } else {
-                            switchCategoryVideo(1)
-                        }
-                        return@setOnKeyListener true
+                        if (isLiveMode) switchRecommendLiveRoom(1) else switchCategoryVideo(1)
+                        true
                     }
                     KeyEvent.KEYCODE_DPAD_DOWN -> {
-                        if (isLiveMode) {
-                            switchRecommendLiveRoom(-1)
-                        } else {
-                            switchCategoryVideo(-1)
-                        }
-                        return@setOnKeyListener true
+                        if (isLiveMode) switchRecommendLiveRoom(-1) else switchCategoryVideo(-1)
+                        true
                     }
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        // OK键：播放/暂停
+                        player?.let {
+                            if (it.isPlaying) it.pause() else it.play()
+                        }
+                        true
+                    }
+                    else -> false
                 }
+            } else false
+        }
+        
+        // 可选：禁用 PlayerView 内部的默认按键处理，避免冲突
+        binding.playerView.useController = true
+        // 仍然显示控制条，但方向键已被我们拦截
+    }
+
+    private fun setupTouchGesture() {
+        binding.root.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchStartY = event.y
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val deltaY = event.y - touchStartY
+                    if (Math.abs(deltaY) > swipeMinDistance) {
+                        if (deltaY > 0) {
+                            // 向下滑动 -> 下一个视频/推荐直播
+                            if (isLiveMode) switchRecommendLiveRoom(1) else switchCategoryVideo(1)
+                        } else {
+                            // 向上滑动 -> 上一个视频/推荐直播
+                            if (isLiveMode) switchRecommendLiveRoom(-1) else switchCategoryVideo(-1)
+                        }
+                    }
+                    true
+                }
+                else -> false
             }
-            false
         }
     }
 
@@ -574,6 +605,7 @@ class PlayerFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        binding.root.requestFocus()  // 确保根布局获得焦点
         player?.play()
     }
 

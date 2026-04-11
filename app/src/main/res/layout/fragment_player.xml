@@ -2,8 +2,11 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
     android:background="@color/player_background"
     tools:context=".screens.player.PlayerFragment">
 
@@ -12,9 +15,11 @@
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
         app:show_buffering="when_playing"
         app:use_controller="true"
-        app:controller_layout_id="@layout/exo_player_control_view" />
+        app:controller_layout_id="@layout/custom_controller" />
 
     <!-- Danmaku Layer -->
     <com.bili.tv.bili_tv_app.widgets.DanmakuView
@@ -78,13 +83,12 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:background="@android:color/black"
+        android:background="#CC000000"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
         android:textColor="@android:color/white"
         android:textSize="16sp"
-        android:visibility="gone"
-        tools:text="切换到下一集" />
+        android:visibility="gone" />
 
     <!-- Bottom hint text -->
     <TextView
@@ -93,12 +97,12 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center"
         android:layout_marginBottom="32dp"
-        android:background="@android:color/black"
+        android:background="#CC000000"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
-        android:text="左右键切换分集/直播间，上下键切换分类视频/推荐直播"
+        android:text="←→切换分集/直播间  ↑↓切换分类视频/推荐直播  |  垂直滑动也可切换"
         android:textColor="@android:color/white"
-        android:textSize="14sp"
+        android:textSize="12sp"
         android:visibility="visible" />
 
 </FrameLayout>
