@@ -63,7 +63,7 @@ class BilibiliApiService {
     }
 
     // Get video info by bvid
-    suspend fun getVideoInfo(bvid: String): Video? {
+    suspend fun getVideoInfo(bvid: String): VideoDetail? {
         val url = "$baseUrl/x/web-interface/view?bvid=$bvid"
         Log.d("BilibiliApiService", "获取视频信息URL: $url")
         
@@ -85,7 +85,7 @@ class BilibiliApiService {
             
             Log.d("BilibiliApiService", "API响应: $body")
             
-            val result = gson.fromJson(body, VideoInfoResponse::class.java)
+            val result = gson.fromJson(body, VideoDetailResponse::class.java)
             Log.d("BilibiliApiService", "解析结果: code=${result.code}, message=${result.message}")
             
             result.data
@@ -286,6 +286,71 @@ class BilibiliApiService {
         }
     }
 
+    // Get follow live rooms
+    suspend fun getFollowLiveRooms(page: Int): List<LiveRoom> {
+        val url = "$baseUrl/xlive/web-interface/v1/relation/live?page=$page&page_size=20"
+        val cookies = AuthService.cookies
+        
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .addHeader("Referer", "https://live.bilibili.com")
+            .addHeader("Cookie", cookies)
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
+            val result = gson.fromJson(body, LiveRoomListResponse::class.java)
+            result.data?.list ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    // Get recommend live rooms
+    suspend fun getRecommendLiveRooms(page: Int): List<LiveRoom> {
+        val url = "$baseUrl/xlive/web-interface/v1/room/sync?page=$page&page_size=20"
+        
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .addHeader("Referer", "https://live.bilibili.com")
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
+            val result = gson.fromJson(body, LiveRoomListResponse::class.java)
+            result.data?.list ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    // Get live stream URL
+    suspend fun getLiveStreamUrl(roomId: Long): String? {
+        val url = "$baseUrl/xlive/web-room/v1/index/getRoomPlayInfo?room_id=$roomId&quality=4&pn=1&ps=1000"
+        
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .addHeader("Referer", "https://live.bilibili.com")
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
+            val result = gson.fromJson(body, LiveUrlResponse::class.java)
+            result.data?.durl?.firstOrNull()?.url
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
     // Get user info
     suspend fun getUserInfo(mid: Long): User? {
         val url = "$baseUrl/x/web-interface/card?mid=$mid"
@@ -389,6 +454,22 @@ class BilibiliApiService {
         val code: Int = 0,
         val message: String = "",
         val data: Video? = null
+    )
+
+    private data class VideoDetailResponse(
+        val code: Int = 0,
+        val message: String = "",
+        val data: VideoDetail? = null
+    )
+
+    private data class LiveRoomListResponse(
+        val code: Int = 0,
+        val message: String = "",
+        val data: LiveRoomListData? = null
+    )
+
+    private data class LiveRoomListData(
+        val list: List<LiveRoom>? = null
     )
 
     private data class DanmakuListResponse(

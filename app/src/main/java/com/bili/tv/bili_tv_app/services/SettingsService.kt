@@ -27,6 +27,16 @@ object SettingsService {
         val DANMAKU_FONT_SIZE = floatPreferencesKey("danmaku_font_size")
         val DANMAKU_DENSITY = floatPreferencesKey("danmaku_density")
 
+        // Auto play last video
+        val AUTO_PLAY_LAST_VIDEO = booleanPreferencesKey("auto_play_last_video")
+        val LAST_PLAYED_BVID = stringPreferencesKey("last_played_bvid")
+        val LAST_PLAYED_TITLE = stringPreferencesKey("last_played_title")
+        val LAST_PLAYED_COVER = stringPreferencesKey("last_played_cover")
+        val LAST_PLAYED_CID = longPreferencesKey("last_played_cid")
+        val LAST_PLAYED_PROGRESS = longPreferencesKey("last_played_progress")
+        val LAST_PLAYED_IS_LIVE = booleanPreferencesKey("last_played_is_live")
+        val LAST_PLAYED_ROOM_ID = longPreferencesKey("last_played_room_id")
+
         // Interface settings
         val SPLASH_ANIMATION = booleanPreferencesKey("splash_animation")
         val SHOW_FPS = booleanPreferencesKey("show_fps")
@@ -122,9 +132,92 @@ object SettingsService {
         get() = runBlocking { dataStore.data.first()[Keys.DANMAKU_ENHANCE_ENABLED] ?: true }
         set(value) = runBlocking { dataStore.edit { it[Keys.DANMAKU_ENHANCE_ENABLED] = value } }
 
+    // Auto play last video settings
+    var autoPlayLastVideo: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.AUTO_PLAY_LAST_VIDEO] ?: false }
+        set(value) = runBlocking { dataStore.edit { it[Keys.AUTO_PLAY_LAST_VIDEO] = value } }
+
+    var lastPlayedBvid: String
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_BVID] ?: "" }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_BVID] = value } }
+
+    var lastPlayedTitle: String
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_TITLE] ?: "" }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_TITLE] = value } }
+
+    var lastPlayedCover: String
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_COVER] ?: "" }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_COVER] = value } }
+
+    var lastPlayedCid: Long
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_CID] ?: 0 }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_CID] = value } }
+
+    var lastPlayedProgress: Long
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_PROGRESS] ?: 0 }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_PROGRESS] = value } }
+
+    var lastPlayedIsLive: Boolean
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_IS_LIVE] ?: false }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_IS_LIVE] = value } }
+
+    var lastPlayedRoomId: Long
+        get() = runBlocking { dataStore.data.first()[Keys.LAST_PLAYED_ROOM_ID] ?: 0 }
+        set(value) = runBlocking { dataStore.edit { it[Keys.LAST_PLAYED_ROOM_ID] = value } }
+
+    // Auto play last video methods
+    fun saveLastPlayedVideo(
+        bvid: String,
+        title: String,
+        cover: String,
+        cid: Long,
+        progress: Long,
+        isLive: Boolean,
+        roomId: Long
+    ) {
+        runBlocking {
+            dataStore.edit {
+                it[Keys.LAST_PLAYED_BVID] = bvid
+                it[Keys.LAST_PLAYED_TITLE] = title
+                it[Keys.LAST_PLAYED_COVER] = cover
+                it[Keys.LAST_PLAYED_CID] = cid
+                it[Keys.LAST_PLAYED_PROGRESS] = progress
+                it[Keys.LAST_PLAYED_IS_LIVE] = isLive
+                it[Keys.LAST_PLAYED_ROOM_ID] = roomId
+            }
+        }
+    }
+
+    fun clearLastPlayedVideo() {
+        runBlocking {
+            dataStore.edit {
+                it.remove(Keys.LAST_PLAYED_BVID)
+                it.remove(Keys.LAST_PLAYED_TITLE)
+                it.remove(Keys.LAST_PLAYED_COVER)
+                it.remove(Keys.LAST_PLAYED_CID)
+                it.remove(Keys.LAST_PLAYED_PROGRESS)
+                it.remove(Keys.LAST_PLAYED_IS_LIVE)
+                it.remove(Keys.LAST_PLAYED_ROOM_ID)
+            }
+        }
+    }
+
+    fun hasLastPlayedVideo(): Boolean {
+        return runBlocking {
+            val data = dataStore.data.first()
+            val isLive = data[Keys.LAST_PLAYED_IS_LIVE] ?: false
+            if (isLive) {
+                data[Keys.LAST_PLAYED_ROOM_ID] ?: 0 > 0
+            } else {
+                data[Keys.LAST_PLAYED_BVID]?.isNotEmpty() == true
+            }
+        }
+    }
+
     // Flow getters for reactive updates
     fun getDefaultQualityFlow(): Flow<Int> = dataStore.data.map { it[Keys.DEFAULT_QUALITY] ?: 80 }
     fun getAutoPlayFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_PLAY] ?: true }
     fun getDanmakuEnabledFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.DANMAKU_ENABLED] ?: true }
     fun getSplashAnimationFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.SPLASH_ANIMATION] ?: true }
+    fun getAutoPlayLastVideoFlow(): Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_PLAY_LAST_VIDEO] ?: false }
 }

@@ -1,59 +1,113 @@
 package com.bili.tv.bili_tv_app.services
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.*
-import androidx.datastore.preferences.preferencesDataStore
+import android.content.SharedPreferences
 import com.bili.tv.bili_tv_app.models.LoginQRCode
 import com.bili.tv.bili_tv_app.models.LoginStatusResponse
 import com.bili.tv.bili_tv_app.models.User
 import com.bili.tv.bili_tv_app.services.api.AuthApi
 import com.google.gson.Gson
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
-val Context.authDataStore: DataStore<Preferences> by preferencesDataStore(name = "auth")
+fun SharedPreferences.edit(block: SharedPreferences.Editor.() -> Unit) {
+    val editor = edit()
+    editor.block()
+    editor.apply()
+}
 
 object AuthService {
 
-    private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
 
     // Keys
     private object Keys {
-        val USER_INFO = stringPreferencesKey("user_info")
-        val ACCESS_TOKEN = stringPreferencesKey("access_token")
-        val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
-        val TOKEN_EXPIRY = longPreferencesKey("token_expiry")
-        val COOKIES = stringPreferencesKey("cookies")
+        const val USER_INFO = "user_info"
+        const val ACCESS_TOKEN = "access_token"
+        const val REFRESH_TOKEN = "refresh_token"
+        const val TOKEN_EXPIRY = "token_expiry"
+        const val COOKIES = "cookies"
+        const val LOGGED_IN = "logged_in"
     }
 
     // Current user
     var currentUser: User? = null
         private set
 
-    val isLoggedIn: Boolean
-        get() = currentUser != null && getAccessToken().isNotEmpty()
+    var cookies: String = ""
+        private set
 
-    suspend fun init(context: Context? = null) {
-        if (!::dataStore.isInitialized && context != null) {
-            dataStore = context.authDataStore
-        }
-        loadUserFromStorage()
+    var accessToken: String = ""
+        private set
+
+    val isLoggedIn: Boolean
+        get() = sharedPreferences.getBoolean(Keys.LOGGED_IN, false) && currentUser != null
+
+    fun init(context: Context) {
+        sharedPreferences = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
+        restoreLoginState()
     }
 
-    private fun loadUserFromStorage() {
-        runBlocking {
-            try {
-                val userInfoJson = dataStore.data.first()[Keys.USER_INFO]
-                if (!userInfoJson.isNullOrEmpty()) {
-                    currentUser = gson.fromJson(userInfoJson, User::class.java)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+    fun restoreLoginState() {
+        try {
+            val userInfoJson = sharedPreferences.getString(Keys.USER_INFO, "")
+            if (!userInfoJson.isNullOrEmpty()) {
+                currentUser = gson.fromJson(userInfoJson, User::class.java)
             }
+            cookies = sharedPreferences.getString(Keys.COOKIES, "") ?: ""
+            accessToken = sharedPreferences.getString(Keys.ACCESS_TOKEN, "") ?: ""
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+    }
+
+    fun saveLoginInfo(
+        accessToken: String,
+        refreshToken: String,
+        expiresIn: Long,
+        cookies: String,
+        user: User
+    ) {
+        val expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(expiresIn)
+
+        sharedPreferences.edit {
+            putString(Keys.ACCESS_TOKEN, accessToken)
+            putString(Keys.REFRESH_TOKEN, refreshToken)
+            putLong(Keys.TOKEN_EXPIRY, expiryTime)
+            putString(Keys.COOKIES, cookies)
+            putString(Keys.USER_INFO, gson.toJson(user))
+            putBoolean(Keys.LOGGED_IN, true)
+        }
+
+        currentUser = user
+        this.cookies = cookies
+        this.accessToken = accessToken
+    }
+
+    fun getCookieValue(cookieName: String): String {
+        return cookies.split(";")
+            .find { it.trim().startsWith("$cookieName=") }
+            ?.substringAfter("=")
+            ?.trim() ?: ""
+    }
+
+    fun getDedeUserId(): String {
+        return getCookieValue("DedeUserID")
+    }
+
+    fun clearLogin() {
+        sharedPreferences.edit {
+            remove(Keys.ACCESS_TOKEN)
+            remove(Keys.REFRESH_TOKEN)
+            remove(Keys.TOKEN_EXPIRY)
+            remove(Keys.COOKIES)
+            remove(Keys.USER_INFO)
+            remove(Keys.LOGGED_IN)
+        }
+
+        currentUser = null
+        cookies = ""
+        accessToken = ""
     }
 
     suspend fun getQRCode(): LoginQRCode? {
@@ -80,70 +134,12 @@ object AuthService {
         }
     }
 
-    suspend fun saveLoginInfo(
-        accessToken: String,
-        refreshToken: String,
-        expiresIn: Long,
-        cookies: String,
-        user: User
-    ) {
-        val expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(expiresIn)
-
-        dataStore.edit { prefs ->
-            prefs[Keys.ACCESS_TOKEN] = accessToken
-            prefs[Keys.REFRESH_TOKEN] = refreshToken
-            prefs[Keys.TOKEN_EXPIRY] = expiryTime
-            prefs[Keys.COOKIES] = cookies
-            prefs[Keys.USER_INFO] = gson.toJson(user)
-        }
-
-        currentUser = user
-    }
-
-    suspend fun logout() {
-        dataStore.edit { prefs ->
-            prefs.remove(Keys.ACCESS_TOKEN)
-            prefs.remove(Keys.REFRESH_TOKEN)
-            prefs.remove(Keys.TOKEN_EXPIRY)
-            prefs.remove(Keys.COOKIES)
-            prefs.remove(Keys.USER_INFO)
-        }
-
-        currentUser = null
-    }
-
-    fun getAccessToken(): String = runBlocking {
-        try {
-            dataStore.data.first()[Keys.ACCESS_TOKEN] ?: ""
-        } catch (e: Exception) {
-            ""
-        }
-    }
-
-    fun getRefreshToken(): String = runBlocking {
-        try {
-            dataStore.data.first()[Keys.REFRESH_TOKEN] ?: ""
-        } catch (e: Exception) {
-            ""
-        }
-    }
-
-    fun getCookies(): String = runBlocking {
-        try {
-            dataStore.data.first()[Keys.COOKIES] ?: ""
-        } catch (e: Exception) {
-            ""
-        }
+    fun getRefreshToken(): String {
+        return sharedPreferences.getString(Keys.REFRESH_TOKEN, "") ?: ""
     }
 
     suspend fun refreshTokenIfNeeded(): Boolean {
-        val expiry = runBlocking {
-            try {
-                dataStore.data.first()[Keys.TOKEN_EXPIRY] ?: 0L
-            } catch (e: Exception) {
-                0L
-            }
-        }
+        val expiry = sharedPreferences.getLong(Keys.TOKEN_EXPIRY, 0L)
 
         // Refresh if token expires within 1 hour
         if (System.currentTimeMillis() > expiry - TimeUnit.HOURS.toMillis(1)) {
@@ -166,9 +162,9 @@ object AuthService {
         }
     }
 
-    suspend fun updateUserInfo(user: User) {
-        dataStore.edit { prefs ->
-            prefs[Keys.USER_INFO] = gson.toJson(user)
+    fun updateUserInfo(user: User) {
+        sharedPreferences.edit {
+            putString(Keys.USER_INFO, gson.toJson(user))
         }
         currentUser = user
     }

@@ -89,6 +89,25 @@ class AuthApi {
         }
     }
 
+    suspend fun getUserInfoByCookie(cookies: String): UserInfoResponse {
+        val url = "https://api.bilibili.com/x/web-interface/nav"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .addHeader("Referer", "https://www.bilibili.com")
+            .addHeader("Cookie", cookies)
+            .build()
+
+        return try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
+            gson.fromJson(body, UserInfoResponse::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            UserInfoResponse(code = -1, message = e.message ?: "Network error")
+        }
+    }
+
     data class UserInfoResponse(
         val code: Int = 0,
         val message: String = "",
@@ -104,8 +123,33 @@ class AuthApi {
         val name: String = "",
         val face: String = "",
         val sign: String = "",
-        val level: Int = 0,
-        val vipType: Int = 0,
-        val vipStatus: Int = 0
+        val levelInfo: LevelInfo? = null,
+        val vipInfo: VipInfo? = null
+    )
+
+    data class LevelInfo(
+        val currentLevel: Int = 0,
+        val currentMin: Int = 0,
+        val currentExp: Int = 0,
+        val nextExp: Int = 0
+    )
+
+    data class VipInfo(
+        val type: Int = 0,
+        val status: Int = 0,
+        val dueDate: Long = 0,
+        val vipPayType: Int = 0,
+        val themeType: Int = 0,
+        val label: Label? = null
+    )
+
+    data class Label(
+        val path: String = "",
+        val text: String = "",
+        val labelTheme: String = "",
+        val textColor: String = "",
+        val bgStyle: Int = 0,
+        val bgColor: String = "",
+        val borderColor: String = ""
     )
 }

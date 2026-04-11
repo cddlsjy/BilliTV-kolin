@@ -72,4 +72,33 @@
 
     </LinearLayout>
 
+    <!-- Switch overlay -->
+    <TextView
+        android:id="@+id/switchOverlay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@android:color/black"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp"
+        android:textColor="@android:color/white"
+        android:textSize="16sp"
+        android:visibility="gone"
+        tools:text="切换到下一集" />
+
+    <!-- Bottom hint text -->
+    <TextView
+        android:id="@+id/hintText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center"
+        android:layout_marginBottom="32dp"
+        android:background="@android:color/black"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="8dp"
+        android:text="左右键切换分集/直播间，上下键切换分类视频/推荐直播"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:visibility="visible" />
+
 </FrameLayout>

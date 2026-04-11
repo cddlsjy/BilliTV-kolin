@@ -101,15 +101,18 @@ class LoginFragment : Fragment() {
                             isPolling = false
                             onLoginSuccess(data)
                         }
-                        -1 -> {
+                        86038 -> {
                             // QR code expired
                             isPolling = false
                             Toast.makeText(requireContext(), "二维码已过期，请重新获取", Toast.LENGTH_SHORT).show()
                             generateQRCode()
                         }
-                        -2 -> {
-                            // User cancelled
+                        86101 -> {
+                            // User scanned but not confirmed
                             // Continue polling
+                        }
+                        86090, 86000 -> {
+                            // Other errors, continue polling
                         }
                         else -> {
                             // Continue polling
@@ -129,33 +132,80 @@ class LoginFragment : Fragment() {
                 data.cookieInfo?.cookies?.let { cookies ->
                     val cookiesString = cookies.joinToString("; ") { "${it.name}=${it.value}" }
 
-                    // Get user info
-                    val userInfo = withContext(Dispatchers.IO) {
-                        AuthApi.getInstance().getLoginInfo(tokenInfo.tokenInfo?.mid ?: 0)
+                    // Get user info with priority: Cookie -> tokenInfo.mid -> DedeUserID from Cookie
+                    val user = withContext(Dispatchers.IO) {
+                        // Priority 1: Get user info via Cookie
+                        val userInfoByCookie = AuthApi.getInstance().getUserInfoByCookie(cookiesString)
+                        if (userInfoByCookie.code == 0 && userInfoByCookie.data?.card != null) {
+                            val card = userInfoByCookie.data.card!!
+                            com.bili.tv.bili_tv_app.models.User(
+                                mid = card.mid,
+                                uname = card.name,
+                                face = card.face,
+                                sign = card.sign,
+                                level = card.levelInfo?.currentLevel ?: 0,
+                                vipType = card.vipInfo?.type ?: 0,
+                                vipStatus = card.vipInfo?.status ?: 0
+                            )
+                        } else {
+                            // Priority 2: Get user info via tokenInfo.mid
+                            val mid = tokenInfo.mid.takeIf { it > 0 } ?: tokenInfo.tokenInfo?.mid ?: 0
+                            if (mid > 0) {
+                                val userInfo = AuthApi.getInstance().getLoginInfo(mid)
+                                if (userInfo.code == 0 && userInfo.data?.card != null) {
+                                    val card = userInfo.data.card!!
+                                    com.bili.tv.bili_tv_app.models.User(
+                                        mid = card.mid,
+                                        uname = card.name,
+                                        face = card.face,
+                                        sign = card.sign,
+                                        level = card.levelInfo?.currentLevel ?: 0,
+                                        vipType = card.vipInfo?.type ?: 0,
+                                        vipStatus = card.vipInfo?.status ?: 0
+                                    )
+                                } else {
+                                    // Priority 3: Get DedeUserID from Cookie
+                                    val dedeUserId = cookies.find { it.name == "DedeUserID" }?.value?.toLongOrNull() ?: 0
+                                    if (dedeUserId > 0) {
+                                        val userInfo = AuthApi.getInstance().getLoginInfo(dedeUserId)
+                                        if (userInfo.code == 0 && userInfo.data?.card != null) {
+                                            val card = userInfo.data.card!!
+                                            com.bili.tv.bili_tv_app.models.User(
+                                                mid = card.mid,
+                                                uname = card.name,
+                                                face = card.face,
+                                                sign = card.sign,
+                                                level = card.levelInfo?.currentLevel ?: 0,
+                                                vipType = card.vipInfo?.type ?: 0,
+                                                vipStatus = card.vipInfo?.status ?: 0
+                                            )
+                                        } else {
+                                            null
+                                        }
+                                    } else {
+                                        null
+                                    }
+                                }
+                            } else {
+                                null
+                            }
+                        }
                     }
 
-                    userInfo.data?.card?.let { card ->
-                        val user = com.bili.tv.bili_tv_app.models.User(
-                            mid = card.mid,
-                            uname = card.name,
-                            face = card.face,
-                            sign = card.sign,
-                            level = card.level,
-                            vipType = card.vipType,
-                            vipStatus = card.vipStatus
-                        )
-
+                    user?.let {
                         AuthService.saveLoginInfo(
                             accessToken = tokenInfo.accessToken,
                             refreshToken = tokenInfo.refreshToken,
                             expiresIn = tokenInfo.expiresIn,
                             cookies = cookiesString,
-                            user = user
+                            user = it
                         )
                     }
                 }
             }
 
+            // Delay to ensure persistence is complete
+            delay(300)
             parentFragmentManager.popBackStack()
         }
     }

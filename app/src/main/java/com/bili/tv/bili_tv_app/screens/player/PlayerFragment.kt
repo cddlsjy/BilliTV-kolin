@@ -4,9 +4,11 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -17,10 +19,14 @@ import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.bili.tv.bili_tv_app.databinding.FragmentPlayerBinding
-import com.bili.tv.bili_tv_app.services.api.BilibiliApiService
+import com.bili.tv.bili_tv_app.models.Episode
+import com.bili.tv.bili_tv_app.models.LiveRoom
+import com.bili.tv.bili_tv_app.models.Video
 import com.bili.tv.bili_tv_app.services.SettingsService
+import com.bili.tv.bili_tv_app.services.api.BilibiliApiService
 import com.bili.tv.bili_tv_app.widgets.DanmakuView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -33,23 +39,65 @@ class PlayerFragment : Fragment() {
     private var player: ExoPlayer? = null
     private var danmakuView: DanmakuView? = null
 
-    private var bvid: String = "BV1nK411p7XK" // Default video ID for testing
-    private var title: String = "测试视频"
+    // 点播模式参数
+    private var bvid: String = ""
+    private var title: String = ""
     private var coverUrl: String = ""
-    private var videoList: List<com.bili.tv.bili_tv_app.models.Video> = emptyList()
-    private var currentIndex: Int = 0
+    private var cid: Long = 0
+    private var aid: Long = 0
+    private var episodeList: List<Episode> = emptyList()
+    private var currentEpisodeIndex: Int = 0
+    private var categoryVideoList: List<Video> = emptyList()
+    private var currentCategoryVideoIndex: Int = 0
+
+    // 直播模式参数
+    private var isLiveMode: Boolean = false
+    private var roomId: Long = 0
+    private var followLiveList: List<LiveRoom> = emptyList()
+    private var currentFollowLiveIndex: Int = 0
+    private var recommendLiveList: List<LiveRoom> = emptyList()
+    private var currentRecommendLiveIndex: Int = 0
+
+    // 按键防抖
+    private val keyDebounceMs = 600L
+    private var lastKeyPressTime = 0L
+
+    // 播放进度
+    private var seekTo: Long = 0
 
     companion object {
         private const val ARG_BVID = "bvid"
         private const val ARG_TITLE = "title"
         private const val ARG_COVER = "cover"
+        private const val ARG_CID = "cid"
+        private const val ARG_AID = "aid"
+        private const val ARG_IS_LIVE = "is_live"
+        private const val ARG_ROOM_ID = "room_id"
+        private const val ARG_CATEGORY_VIDEO_LIST = "category_video_list"
+        private const val ARG_SEEK_TO = "seek_to"
 
-        fun newInstance(bvid: String, title: String, coverUrl: String): PlayerFragment {
+        fun newInstance(
+            bvid: String = "",
+            title: String = "",
+            coverUrl: String = "",
+            cid: Long = 0,
+            aid: Long = 0,
+            isLive: Boolean = false,
+            roomId: Long = 0,
+            categoryVideoList: List<Video> = emptyList(),
+            seekTo: Long = 0
+        ): PlayerFragment {
             return PlayerFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_BVID, bvid)
                     putString(ARG_TITLE, title)
                     putString(ARG_COVER, coverUrl)
+                    putLong(ARG_CID, cid)
+                    putLong(ARG_AID, aid)
+                    putBoolean(ARG_IS_LIVE, isLive)
+                    putLong(ARG_ROOM_ID, roomId)
+                    putSerializable(ARG_CATEGORY_VIDEO_LIST, ArrayList(categoryVideoList))
+                    putLong(ARG_SEEK_TO, seekTo)
                 }
             }
         }
@@ -57,10 +105,15 @@ class PlayerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            bvid = it.getString(ARG_BVID, "")
+        arguments?.let {\n            bvid = it.getString(ARG_BVID, "")
             title = it.getString(ARG_TITLE, "")
             coverUrl = it.getString(ARG_COVER, "")
+            cid = it.getLong(ARG_CID, 0)
+            aid = it.getLong(ARG_AID, 0)
+            isLiveMode = it.getBoolean(ARG_IS_LIVE, false)
+            roomId = it.getLong(ARG_ROOM_ID, 0)
+            categoryVideoList = it.getSerializable(ARG_CATEGORY_VIDEO_LIST) as? ArrayList<Video> ?: emptyList()
+            seekTo = it.getLong(ARG_SEEK_TO, 0)
         }
     }
 
@@ -76,7 +129,13 @@ class PlayerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupPlayer()
-        loadVideo()
+        setupKeyListener()
+        if (isLiveMode) {
+            loadLiveStream()
+            preloadLiveLists()
+        } else {
+            loadVideo()
+        }
     }
 
     private fun setupPlayer() {
@@ -98,44 +157,37 @@ class PlayerFragment : Fragment() {
 
             it.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
-                    Log.d("PlayerFragment", "ExoPlayer状态变化: $state")
                     when (state) {
                         Player.STATE_BUFFERING -> {
-                            Log.d("PlayerFragment", "ExoPlayer: 正在缓冲")
                             binding.loadingProgress.visibility = View.VISIBLE
                         }
                         Player.STATE_READY -> {
-                            Log.d("PlayerFragment", "ExoPlayer: 准备就绪")
                             binding.loadingProgress.visibility = View.GONE
-                            // Ensure audio is enabled
-                            it.volume = 1.0f
-                            Log.d("PlayerFragment", "音频音量: ${it.volume}")
+                            if (seekTo > 0 && !isLiveMode) {
+                                it.seekTo(seekTo)
+                                seekTo = 0
+                            }
                         }
                         Player.STATE_ENDED -> {
-                            Log.d("PlayerFragment", "ExoPlayer: 播放结束")
-                            // Handle video ended - reset player state
                             binding.loadingProgress.visibility = View.GONE
-                            // Auto play next video
-                            playNextVideo()
+                            if (!isLiveMode) {
+                                playNextEpisode()
+                            }
                         }
                         Player.STATE_IDLE -> {
-                            Log.d("PlayerFragment", "ExoPlayer: 空闲状态")
-                            // Handle idle
+                            binding.loadingProgress.visibility = View.GONE
                         }
                     }
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Log.d("PlayerFragment", "ExoPlayer错误: ${error.message}")
-                    Log.d("PlayerFragment", "ExoPlayer错误代码: ${error.errorCode}")
-                    Log.d("PlayerFragment", "ExoPlayer错误堆栈: ${error.stackTraceToString()}")
                     Toast.makeText(requireContext(), "播放错误: ${error.message}", Toast.LENGTH_SHORT).show()
                 }
             })
         }
 
-        // Setup danmaku view
-        if (SettingsService.danmakuEnabled) {
+        // Setup danmaku view (only for non-live mode)
+        if (!isLiveMode && SettingsService.danmakuEnabled) {
             setupDanmaku()
         }
     }
@@ -149,64 +201,120 @@ class PlayerFragment : Fragment() {
         }
     }
 
+    private fun setupKeyListener() {
+        binding.playerView.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastKeyPressTime < keyDebounceMs) {
+                    return@setOnKeyListener true
+                }
+                lastKeyPressTime = currentTime
+
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        if (isLiveMode) {
+                            switchFollowLiveRoom(-1)
+                        } else {
+                            switchEpisode(-1)
+                        }
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        if (isLiveMode) {
+                            switchFollowLiveRoom(1)
+                        } else {
+                            switchEpisode(1)
+                        }
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        if (isLiveMode) {
+                            switchRecommendLiveRoom(1)
+                        } else {
+                            switchCategoryVideo(1)
+                        }
+                        return@setOnKeyListener true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        if (isLiveMode) {
+                            switchRecommendLiveRoom(-1)
+                        } else {
+                            switchCategoryVideo(-1)
+                        }
+                        return@setOnKeyListener true
+                    }
+                }
+            }
+            false
+        }
+    }
+
     private fun loadVideo() {
         lifecycleScope.launch {
             binding.loadingProgress.visibility = View.VISIBLE
 
             try {
-                Log.d("PlayerFragment", "bvid: $bvid")
-                Log.d("PlayerFragment", "title: $title")
-                Log.d("PlayerFragment", "coverUrl: $coverUrl")
-                Log.d("PlayerFragment", "开始加载视频: $bvid")
-                Log.d("PlayerFragment", "开始获取视频信息")
+                if (bvid.isEmpty()) {
+                    Toast.makeText(requireContext(), "视频ID为空", Toast.LENGTH_SHORT).show()
+                    binding.loadingProgress.visibility = View.GONE
+                    return@launch
+                }
+
                 // Get video info
-                val videoInfo = withContext(Dispatchers.IO) {
+                val videoDetail = withContext(Dispatchers.IO) {
                     BilibiliApiService.getInstance().getVideoInfo(bvid)
                 }
 
-                if (videoInfo == null) {
-                    Log.d("PlayerFragment", "获取视频信息失败")
+                if (videoDetail == null) {
                     Toast.makeText(requireContext(), "获取视频信息失败", Toast.LENGTH_SHORT).show()
                     binding.loadingProgress.visibility = View.GONE
                     return@launch
                 }
 
-                videoInfo.let { video ->
+                videoDetail.let {video ->
                     binding.videoTitle.text = video.title
-                    Log.d("PlayerFragment", "视频信息获取成功: ${video.title}, aid: ${video.aid}, cid: ${video.cid}")
+                    aid = video.aid
+                    
+                    // Get episode list
+                    episodeList = video.pages
+                    if (cid > 0) {
+                        currentEpisodeIndex = video.getPageIndex(cid)
+                    }
 
-                    Log.d("PlayerFragment", "开始获取播放地址")
+                    if (currentEpisodeIndex < 0 || currentEpisodeIndex >= episodeList.size) {
+                        currentEpisodeIndex = 0
+                    }
+
+                    val currentEpisode = episodeList[currentEpisodeIndex]
+                    cid = currentEpisode.cid
+
                     // Get play URL
                     val videoUrl = withContext(Dispatchers.IO) {
                         BilibiliApiService.getInstance().getPlayUrl(
-                            video.aid,
-                            video.cid,
+                            aid,
+                            cid,
                             SettingsService.defaultQuality
                         )
                     }
 
                     if (videoUrl == null) {
-                        Log.d("PlayerFragment", "获取播放地址失败")
                         Toast.makeText(requireContext(), "获取播放地址失败", Toast.LENGTH_SHORT).show()
                         binding.loadingProgress.visibility = View.GONE
                         return@launch
                     }
 
-                    videoUrl.let { urlString ->
-                        Log.d("PlayerFragment", "视频URL: $urlString")
-                        Log.d("PlayerFragment", "开始播放视频")
-                        playVideo(urlString)
+                    playVideo(videoUrl)
 
-                        // Temporarily disable danmaku to fix crash
-                        // if (SettingsService.danmakuEnabled && video.cid > 0) {
-                        //     Log.d("PlayerFragment", "开始加载弹幕")
-                        //     loadDanmaku(video.cid)
-                        // }
+                    // Load danmaku
+                    if (SettingsService.danmakuEnabled && cid > 0) {
+                        loadDanmaku(cid)
                     }
+
+                    // Save last played video
+                    saveLastPlayedVideo()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.d("PlayerFragment", "视频加载失败: ${e.message}")
                 Toast.makeText(requireContext(), "视频加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
                 binding.loadingProgress.visibility = View.GONE
@@ -214,50 +322,73 @@ class PlayerFragment : Fragment() {
         }
     }
 
-    private fun playVideo(url: String) {
-        if (player == null) {
-            Log.d("PlayerFragment", "播放器未初始化")
-            if (isAdded && context != null) {
-                Toast.makeText(context, "播放器未初始化", Toast.LENGTH_SHORT).show()
+    private fun loadLiveStream() {
+        lifecycleScope.launch {
+            binding.loadingProgress.visibility = View.VISIBLE
+
+            try {
+                if (roomId <= 0) {
+                    Toast.makeText(requireContext(), "直播间ID无效", Toast.LENGTH_SHORT).show()
+                    binding.loadingProgress.visibility = View.GONE
+                    return@launch
+                }
+
+                // Get live stream URL
+                val streamUrl = withContext(Dispatchers.IO) {
+                    BilibiliApiService.getInstance().getLiveStreamUrl(roomId)
+                }
+
+                if (streamUrl == null) {
+                    Toast.makeText(requireContext(), "获取直播流地址失败", Toast.LENGTH_SHORT).show()
+                    binding.loadingProgress.visibility = View.GONE
+                    return@launch
+                }
+
+                playVideo(streamUrl)
+                binding.videoTitle.text = title
+
+                // Save last played live
+                saveLastPlayedLive()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(requireContext(), "直播加载失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                binding.loadingProgress.visibility = View.GONE
             }
-            return
+        }
+    }
+
+    private fun preloadLiveLists() {
+        // Preload follow live list
+        lifecycleScope.launch {
+            followLiveList = withContext(Dispatchers.IO) {
+                BilibiliApiService.getInstance().getFollowLiveRooms(1)
+            }
         }
 
-        if (!isAdded || context == null) {
-            Log.d("PlayerFragment", "Fragment未添加或Context为空")
-            return
+        // Preload recommend live list
+        lifecycleScope.launch {
+            recommendLiveList = withContext(Dispatchers.IO) {
+                BilibiliApiService.getInstance().getRecommendLiveRooms(1)
+            }
         }
+    }
 
+    private fun playVideo(url: String) {
         player?.let { exoPlayer ->
             try {
-                Log.d("PlayerFragment", "开始播放视频: $url")
-                // 重置播放器状态
-                try {
-                    if (exoPlayer.playbackState != Player.STATE_IDLE) {
-                        exoPlayer.stop()
-                    }
-                    exoPlayer.clearMediaItems()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    Log.d("PlayerFragment", "重置播放器状态失败: ${e.message}")
+                if (exoPlayer.playbackState != Player.STATE_IDLE) {
+                    exoPlayer.stop()
                 }
-                
+                exoPlayer.clearMediaItems()
+
                 val mediaItem = MediaItem.fromUri(url)
                 exoPlayer.setMediaItem(mediaItem)
                 exoPlayer.prepare()
                 exoPlayer.playWhenReady = true
-                // Ensure audio is enabled
-                exoPlayer.volume = 1.0f
-                Log.d("PlayerFragment", "视频播放开始")
-                Log.d("PlayerFragment", "音频音量: ${exoPlayer.volume}")
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.d("PlayerFragment", "播放失败: ${e.message}")
-                context?.let { ctx ->
-                    if (isAdded) {
-                        Toast.makeText(ctx, "视频播放失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                Toast.makeText(requireContext(), "视频播放失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -274,15 +405,170 @@ class PlayerFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                Log.d("PlayerFragment", "加载弹幕失败: ${e.message}")
             }
         }
     }
 
-    private fun playNextVideo() {
-        // TODO: Implement auto play next video functionality
-        // Currently disabled because we can't pass video list through Bundle
-        Log.d("PlayerFragment", "自动播放下一条视频功能暂未实现")
+    private fun switchEpisode(direction: Int) {
+        if (episodeList.isEmpty()) return
+
+        val newIndex = currentEpisodeIndex + direction
+        if (newIndex < 0 || newIndex >= episodeList.size) return
+
+        currentEpisodeIndex = newIndex
+        val newEpisode = episodeList[currentEpisodeIndex]
+        cid = newEpisode.cid
+
+        showSwitchOverlay("第${newEpisode.page}集: ${newEpisode.part}")
+
+        // Load new episode
+        lifecycleScope.launch {
+            val videoUrl = withContext(Dispatchers.IO) {
+                BilibiliApiService.getInstance().getPlayUrl(aid, cid, SettingsService.defaultQuality)
+            }
+
+            videoUrl?.let {
+                playVideo(it)
+                saveLastPlayedVideo()
+            }
+        }
+    }
+
+    private fun switchCategoryVideo(direction: Int) {
+        if (categoryVideoList.isEmpty()) return
+
+        val newIndex = currentCategoryVideoIndex + direction
+        if (newIndex < 0 || newIndex >= categoryVideoList.size) return
+
+        currentCategoryVideoIndex = newIndex
+        val newVideo = categoryVideoList[newIndex]
+
+        showSwitchOverlay(newVideo.title)
+
+        // Load new video
+        bvid = newVideo.bvid
+        title = newVideo.title
+        coverUrl = newVideo.pic
+        cid = newVideo.cid
+        aid = newVideo.aid
+        currentEpisodeIndex = 0
+
+        loadVideo()
+    }
+
+    private fun switchFollowLiveRoom(direction: Int) {
+        if (followLiveList.isEmpty()) return
+
+        val newIndex = currentFollowLiveIndex + direction
+        if (newIndex < 0) return
+        if (newIndex >= followLiveList.size) {
+            // Load next page
+            lifecycleScope.launch {
+                val moreRooms = withContext(Dispatchers.IO) {
+                    BilibiliApiService.getInstance().getFollowLiveRooms((newIndex / 20) + 1)
+                }
+                if (moreRooms.isNotEmpty()) {
+                    followLiveList += moreRooms
+                    switchFollowLiveRoom(direction)
+                }
+            }
+            return
+        }
+
+        currentFollowLiveIndex = newIndex
+        val newRoom = followLiveList[newIndex]
+
+        showSwitchOverlay(newRoom.title)
+
+        // Load new live
+        roomId = newRoom.roomId
+        title = newRoom.title
+        loadLiveStream()
+    }
+
+    private fun switchRecommendLiveRoom(direction: Int) {
+        if (recommendLiveList.isEmpty()) return
+
+        val newIndex = currentRecommendLiveIndex + direction
+        if (newIndex < 0) return
+        if (newIndex >= recommendLiveList.size) {
+            // Load next page
+            lifecycleScope.launch {
+                val moreRooms = withContext(Dispatchers.IO) {
+                    BilibiliApiService.getInstance().getRecommendLiveRooms((newIndex / 20) + 1)
+                }
+                if (moreRooms.isNotEmpty()) {
+                    recommendLiveList += moreRooms
+                    switchRecommendLiveRoom(direction)
+                }
+            }
+            return
+        }
+
+        currentRecommendLiveIndex = newIndex
+        val newRoom = recommendLiveList[newIndex]
+
+        showSwitchOverlay(newRoom.title)
+
+        // Load new live
+        roomId = newRoom.roomId
+        title = newRoom.title
+        loadLiveStream()
+    }
+
+    private fun showSwitchOverlay(text: String) {
+        binding.switchOverlay.visibility = View.VISIBLE
+        binding.switchOverlay.text = text
+
+        lifecycleScope.launch {
+            delay(2000)
+            binding.switchOverlay.visibility = View.GONE
+        }
+    }
+
+    private fun playNextEpisode() {
+        if (episodeList.size > currentEpisodeIndex + 1) {
+            switchEpisode(1)
+        }
+    }
+
+    private fun savePlaybackProgress() {
+        if (!isLiveMode) {
+            val currentPosition = player?.currentPosition ?: 0
+            SettingsService.saveLastPlayedVideo(
+                bvid = bvid,
+                title = title,
+                cover = coverUrl,
+                cid = cid,
+                progress = currentPosition,
+                isLive = false,
+                roomId = 0
+            )
+        }
+    }
+
+    private fun saveLastPlayedVideo() {
+        SettingsService.saveLastPlayedVideo(
+            bvid = bvid,
+            title = title,
+            cover = coverUrl,
+            cid = cid,
+            progress = 0,
+            isLive = false,
+            roomId = 0
+        )
+    }
+
+    private fun saveLastPlayedLive() {
+        SettingsService.saveLastPlayedVideo(
+            bvid = "",
+            title = title,
+            cover = "",
+            cid = 0,
+            progress = 0,
+            isLive = true,
+            roomId = roomId
+        )
     }
 
     override fun onResume() {
@@ -292,11 +578,13 @@ class PlayerFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        savePlaybackProgress()
         player?.pause()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        savePlaybackProgress()
         player?.release()
         player = null
         _binding = null

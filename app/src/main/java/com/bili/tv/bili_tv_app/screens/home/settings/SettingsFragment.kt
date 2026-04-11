@@ -40,6 +40,7 @@ class SettingsFragment : Fragment() {
         binding.adFilterSwitch.isChecked = SettingsService.adFilterEnabled
         binding.sponsorBlockSwitch.isChecked = SettingsService.sponsorBlockEnabled
         binding.autoPlaySwitch.isChecked = SettingsService.autoPlay
+        binding.autoPlayLastVideoSwitch.isChecked = SettingsService.autoPlayLastVideo
 
         // Save switch states
         binding.splashAnimationSwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -60,6 +61,13 @@ class SettingsFragment : Fragment() {
 
         binding.autoPlaySwitch.setOnCheckedChangeListener { _, isChecked ->
             SettingsService.autoPlay = isChecked
+        }
+
+        binding.autoPlayLastVideoSwitch.setOnCheckedChangeListener { _, isChecked ->
+            SettingsService.autoPlayLastVideo = isChecked
+            if (!isChecked) {
+                SettingsService.clearLastPlayedVideo()
+            }
         }
 
         // Quality spinner

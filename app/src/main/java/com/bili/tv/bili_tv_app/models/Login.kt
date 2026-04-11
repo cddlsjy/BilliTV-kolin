@@ -61,6 +61,9 @@ data class LoginStatusData(
 )
 
 data class TokenInfo(
+    @SerializedName("mid")
+    val mid: Long = 0,
+
     @SerializedName("access_token")
     val accessToken: String = "",
 
