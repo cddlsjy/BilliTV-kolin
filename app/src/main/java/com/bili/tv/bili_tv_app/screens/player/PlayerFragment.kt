@@ -105,7 +105,8 @@ class PlayerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {\n            bvid = it.getString(ARG_BVID, "")
+        arguments?.let {
+            bvid = it.getString(ARG_BVID, "")
             title = it.getString(ARG_TITLE, "")
             coverUrl = it.getString(ARG_COVER, "")
             cid = it.getLong(ARG_CID, 0)

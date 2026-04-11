@@ -404,7 +404,7 @@ class BilibiliApiService {
     // Get user history
     suspend fun getHistory(): List<Video> {
         val url = "$baseUrl/x/web-interface/history/cursor?pn=1&ps=20"
-        val cookies = AuthService.getCookies()
+        val cookies = AuthService.cookies
 
         val request = Request.Builder()
             .url(url)
