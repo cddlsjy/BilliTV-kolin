@@ -1,5 +1,7 @@
 package com.bili.tv.bili_tv_app.screens.player
 
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -22,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(UnstableApi::class)
 class PlayerFragment : Fragment() {
 
     private var _binding: FragmentPlayerBinding? = null
