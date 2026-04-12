@@ -68,7 +68,25 @@ class PlayerFragment : Fragment() {
 
     // 触摸手势
     private var touchStartY = 0f
+    private var touchStartX = 0f
     private val swipeMinDistance = 100f  // 最小滑动距离（像素）
+    
+    // 播放模式
+    enum class PlaybackMode {
+        SEQUENTIAL,  // 顺序播放
+        LOOP_ALL,    // 列表循环
+        LOOP_ONE,    // 单曲循环
+        RANDOM       // 随机播放
+    }
+    
+    private var playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL
+    
+    // 手势防抖
+    private val gestureDebounceMs = 500L
+    private var lastGestureTime = 0L
+    
+    // 加载状态
+    private var isLoading = false
 
     companion object {
         private const val ARG_BVID = "bvid"
@@ -261,17 +279,36 @@ class PlayerFragment : Fragment() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     touchStartY = event.y
+                    touchStartX = event.x
                     true
                 }
                 MotionEvent.ACTION_UP -> {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastGestureTime < gestureDebounceMs) {
+                        return@setOnTouchListener true
+                    }
+                    lastGestureTime = currentTime
+
                     val deltaY = event.y - touchStartY
-                    if (Math.abs(deltaY) > swipeMinDistance) {
+                    val deltaX = event.x - touchStartX
+
+                    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > swipeMinDistance) {
+                        // 上下滑动：切换分类视频或推荐直播
                         if (deltaY > 0) {
                             // 向下滑动 -> 下一个视频/推荐直播
                             if (isLiveMode) switchRecommendLiveRoom(1) else switchCategoryVideo(1)
                         } else {
                             // 向上滑动 -> 上一个视频/推荐直播
                             if (isLiveMode) switchRecommendLiveRoom(-1) else switchCategoryVideo(-1)
+                        }
+                    } else if (Math.abs(deltaX) > swipeMinDistance) {
+                        // 左右滑动：切换上一个/下一个
+                        if (deltaX > 0) {
+                            // 向右滑动 -> 下一个
+                            playNext()
+                        } else {
+                            // 向左滑动 -> 上一个
+                            playPrev()
                         }
                     }
                     true
@@ -442,40 +479,70 @@ class PlayerFragment : Fragment() {
     }
 
     private fun switchEpisode(direction: Int) {
-        if (episodeList.isEmpty()) return
+        if (isLoading || episodeList.isEmpty()) return
 
         val newIndex = currentEpisodeIndex + direction
-        if (newIndex < 0 || newIndex >= episodeList.size) return
+        if (newIndex < 0 || newIndex >= episodeList.size) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，处理边界情况
+                val loopIndex = if (newIndex < 0) episodeList.size - 1 else 0
+                currentEpisodeIndex = loopIndex
+            } else {
+                return
+            }
+        } else {
+            currentEpisodeIndex = newIndex
+        }
 
-        currentEpisodeIndex = newIndex
         val newEpisode = episodeList[currentEpisodeIndex]
         cid = newEpisode.cid
 
-        showSwitchOverlay("第${newEpisode.page}集: ${newEpisode.part}")
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new episode
         lifecycleScope.launch {
-            val videoUrl = withContext(Dispatchers.IO) {
-                BilibiliApiService.getInstance().getPlayUrl(aid, cid, SettingsService.defaultQuality)
-            }
+            try {
+                val videoUrl = withContext(Dispatchers.IO) {
+                    BilibiliApiService.getInstance().getPlayUrl(aid, cid, SettingsService.defaultQuality)
+                }
 
-            videoUrl?.let {
-                playVideo(it)
-                saveLastPlayedVideo()
+                videoUrl?.let {
+                    playVideo(it)
+                    saveLastPlayedVideo()
+                    showSwitchOverlay("第${newEpisode.page}集: ${newEpisode.part}")
+                } ?: run {
+                    showSwitchOverlay("加载失败")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
             }
         }
     }
 
     private fun switchCategoryVideo(direction: Int) {
-        if (categoryVideoList.isEmpty()) return
+        if (isLoading || categoryVideoList.isEmpty()) return
 
         val newIndex = currentCategoryVideoIndex + direction
-        if (newIndex < 0 || newIndex >= categoryVideoList.size) return
+        if (newIndex < 0 || newIndex >= categoryVideoList.size) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，处理边界情况
+                val loopIndex = if (newIndex < 0) categoryVideoList.size - 1 else 0
+                currentCategoryVideoIndex = loopIndex
+            } else {
+                return
+            }
+        } else {
+            currentCategoryVideoIndex = newIndex
+        }
 
-        currentCategoryVideoIndex = newIndex
-        val newVideo = categoryVideoList[newIndex]
+        val newVideo = categoryVideoList[currentCategoryVideoIndex]
 
-        showSwitchOverlay(newVideo.title)
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new video
         bvid = newVideo.bvid
@@ -485,67 +552,137 @@ class PlayerFragment : Fragment() {
         aid = newVideo.aid
         currentEpisodeIndex = 0
 
-        loadVideo()
+        lifecycleScope.launch {
+            try {
+                loadVideo()
+                showSwitchOverlay(newVideo.title)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     private fun switchFollowLiveRoom(direction: Int) {
-        if (followLiveList.isEmpty()) return
+        if (isLoading || followLiveList.isEmpty()) return
 
         val newIndex = currentFollowLiveIndex + direction
-        if (newIndex < 0) return
-        if (newIndex >= followLiveList.size) {
+        if (newIndex < 0) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，回到最后一个
+                currentFollowLiveIndex = followLiveList.size - 1
+            } else {
+                return
+            }
+        } else if (newIndex >= followLiveList.size) {
             // Load next page
+            showSwitchOverlay("加载中...")
+            isLoading = true
             lifecycleScope.launch {
-                val moreRooms = withContext(Dispatchers.IO) {
-                    BilibiliApiService.getInstance().getFollowLiveRooms((newIndex / 20) + 1)
-                }
-                if (moreRooms.isNotEmpty()) {
-                    followLiveList += moreRooms
-                    switchFollowLiveRoom(direction)
+                try {
+                    val moreRooms = withContext(Dispatchers.IO) {
+                        BilibiliApiService.getInstance().getFollowLiveRooms((newIndex / 20) + 1)
+                    }
+                    if (moreRooms.isNotEmpty()) {
+                        followLiveList += moreRooms
+                        switchFollowLiveRoom(direction)
+                    } else {
+                        showSwitchOverlay("没有更多直播间")
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    showSwitchOverlay("加载失败")
+                } finally {
+                    isLoading = false
                 }
             }
             return
+        } else {
+            currentFollowLiveIndex = newIndex
         }
 
-        currentFollowLiveIndex = newIndex
-        val newRoom = followLiveList[newIndex]
+        val newRoom = followLiveList[currentFollowLiveIndex]
 
-        showSwitchOverlay(newRoom.title)
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new live
         roomId = newRoom.roomId
         title = newRoom.title
-        loadLiveStream()
+
+        lifecycleScope.launch {
+            try {
+                loadLiveStream()
+                showSwitchOverlay(newRoom.title)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     private fun switchRecommendLiveRoom(direction: Int) {
-        if (recommendLiveList.isEmpty()) return
+        if (isLoading || recommendLiveList.isEmpty()) return
 
         val newIndex = currentRecommendLiveIndex + direction
-        if (newIndex < 0) return
-        if (newIndex >= recommendLiveList.size) {
+        if (newIndex < 0) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，回到最后一个
+                currentRecommendLiveIndex = recommendLiveList.size - 1
+            } else {
+                return
+            }
+        } else if (newIndex >= recommendLiveList.size) {
             // Load next page
+            showSwitchOverlay("加载中...")
+            isLoading = true
             lifecycleScope.launch {
-                val moreRooms = withContext(Dispatchers.IO) {
-                    BilibiliApiService.getInstance().getRecommendLiveRooms((newIndex / 20) + 1)
-                }
-                if (moreRooms.isNotEmpty()) {
-                    recommendLiveList += moreRooms
-                    switchRecommendLiveRoom(direction)
+                try {
+                    val moreRooms = withContext(Dispatchers.IO) {
+                        BilibiliApiService.getInstance().getRecommendLiveRooms((newIndex / 20) + 1)
+                    }
+                    if (moreRooms.isNotEmpty()) {
+                        recommendLiveList += moreRooms
+                        switchRecommendLiveRoom(direction)
+                    } else {
+                        showSwitchOverlay("没有更多直播间")
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    showSwitchOverlay("加载失败")
+                } finally {
+                    isLoading = false
                 }
             }
             return
+        } else {
+            currentRecommendLiveIndex = newIndex
         }
 
-        currentRecommendLiveIndex = newIndex
-        val newRoom = recommendLiveList[newIndex]
+        val newRoom = recommendLiveList[currentRecommendLiveIndex]
 
-        showSwitchOverlay(newRoom.title)
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new live
         roomId = newRoom.roomId
         title = newRoom.title
-        loadLiveStream()
+
+        lifecycleScope.launch {
+            try {
+                loadLiveStream()
+                showSwitchOverlay(newRoom.title)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     private fun showSwitchOverlay(text: String) {
@@ -561,7 +698,70 @@ class PlayerFragment : Fragment() {
     private fun playNextEpisode() {
         if (episodeList.size > currentEpisodeIndex + 1) {
             switchEpisode(1)
+        } else if (playbackMode == PlaybackMode.LOOP_ALL) {
+            // 列表循环，回到第一集
+            currentEpisodeIndex = -1
+            switchEpisode(1)
         }
+    }
+    
+    private fun playNext() {
+        when {
+            isLiveMode -> {
+                // 直播模式：优先切换关注的直播间，然后切换推荐直播间
+                if (followLiveList.isNotEmpty() && currentFollowLiveIndex < followLiveList.size - 1) {
+                    switchFollowLiveRoom(1)
+                } else if (recommendLiveList.isNotEmpty()) {
+                    switchRecommendLiveRoom(1)
+                }
+            }
+            else -> {
+                // 点播模式：优先切换分集，然后切换分类视频
+                if (episodeList.size > currentEpisodeIndex + 1) {
+                    switchEpisode(1)
+                } else if (categoryVideoList.isNotEmpty()) {
+                    switchCategoryVideo(1)
+                } else if (playbackMode == PlaybackMode.LOOP_ALL) {
+                    // 列表循环，回到第一集
+                    currentEpisodeIndex = -1
+                    switchEpisode(1)
+                }
+            }
+        }
+    }
+    
+    private fun playPrev() {
+        when {
+            isLiveMode -> {
+                // 直播模式：优先切换关注的直播间，然后切换推荐直播间
+                if (followLiveList.isNotEmpty() && currentFollowLiveIndex > 0) {
+                    switchFollowLiveRoom(-1)
+                } else if (recommendLiveList.isNotEmpty() && currentRecommendLiveIndex > 0) {
+                    switchRecommendLiveRoom(-1)
+                }
+            }
+            else -> {
+                // 点播模式：优先切换分集，然后切换分类视频
+                if (currentEpisodeIndex > 0) {
+                    switchEpisode(-1)
+                } else if (categoryVideoList.isNotEmpty() && currentCategoryVideoIndex > 0) {
+                    switchCategoryVideo(-1)
+                } else if (playbackMode == PlaybackMode.LOOP_ALL) {
+                    // 列表循环，回到最后一集
+                    currentEpisodeIndex = episodeList.size
+                    switchEpisode(-1)
+                }
+            }
+        }
+    }
+    
+    private fun setPlaybackMode(mode: PlaybackMode) {
+        playbackMode = mode
+        // 可以在这里添加持久化逻辑，保存到SettingsService
+    }
+    
+    private fun getPlaybackMode(): PlaybackMode {
+        return playbackMode
     }
 
     private fun savePlaybackProgress() {

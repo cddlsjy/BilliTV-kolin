@@ -48,6 +48,15 @@
             app:tint="@color/text_primary" />
 
         <ImageButton
+            android:id="@+id/category_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_crop"
+            android:contentDescription="分类"
+            app:tint="@color/text_primary" />
+
+        <ImageButton
             android:id="@+id/user_button"
             android:layout_width="48dp"
             android:layout_height="48dp"

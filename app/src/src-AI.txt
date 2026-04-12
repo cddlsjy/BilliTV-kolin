@@ -2,6 +2,7 @@
 项目目录树
 ================================================================================
 
+├── BilliTV-kolin.txt
 └── main
     ├── AndroidManifest.xml
     ├── java
@@ -9,6 +10,7 @@
     │       └── bili
     │           └── tv
     │               └── bili_tv_app
+    │                   ├── 04-11b.txt
     │                   ├── 04-11la.txt
     │                   ├── MainActivity.kt
     │                   ├── core
@@ -29,6 +31,8 @@
     │                   │   ├── DanmakuEnhancePlugin.kt
     │                   │   └── SponsorBlockPlugin.kt
     │                   ├── screens
+    │                   │   ├── category
+    │                   │   │   └── CategoryFragment.kt
     │                   │   ├── home
     │                   │   │   ├── HomeFragment.kt
     │                   │   │   ├── login
@@ -57,6 +61,8 @@
         │   └── search_input_bg.xml
         ├── layout
         │   ├── activity_main.xml
+        │   ├── custom_controller.xml
+        │   ├── fragment_category.xml
         │   ├── fragment_home.xml
         │   ├── fragment_login.xml
         │   ├── fragment_player.xml
@@ -280,20 +286,10 @@ package com.bili.tv.bili_tv_app.models
 import com.google.gson.annotations.SerializedName
 
 data class Episode(
-    @SerializedName("cid")
-    val cid: Long = 0,
-
-    @SerializedName("page")
-    val page: Int = 0,
-
-    @SerializedName("part")
-    val part: String = "",
-
-    @SerializedName("duration")
-    val duration: Int = 0,
-
-    @SerializedName("first_frame")
-    val firstFrame: String = ""
+    @SerializedName("cid") val cid: Long = 0,
+    @SerializedName("page") val page: Int = 0,
+    @SerializedName("part") val part: String = "",
+    @SerializedName("duration") val duration: Int = 0
 )
 ```
 
@@ -304,60 +300,20 @@ package com.bili.tv.bili_tv_app.models
 import com.google.gson.annotations.SerializedName
 
 data class LiveRoom(
-    @SerializedName("roomid")
-    val roomId: Long = 0,
-
-    @SerializedName("title")
-    val title: String = "",
-
-    @SerializedName("uname")
-    val uname: String = "",
-
-    @SerializedName("face")
-    val face: String = "",
-
-    @SerializedName("cover")
-    val cover: String = "",
-
-    @SerializedName("online")
-    val online: Int = 0,
-
-    @SerializedName("cid")
-    val cid: Long = 0,
-
-    @SerializedName("area_name")
-    val areaName: String = "",
-
-    @SerializedName("live_status")
-    val liveStatus: Int = 0 // 1: live, 0: not live
+    @SerializedName("roomid") val roomId: Long = 0,
+    @SerializedName("title") val title: String = "",
+    @SerializedName("uname") val uname: String = "",
+    @SerializedName("cover") val cover: String = "",
+    @SerializedName("online") val online: Int = 0,
+    @SerializedName("live_status") val liveStatus: Int = 0
 )
 
 data class LiveStreamResponse(
-    @SerializedName("code")
-    val code: Int = 0,
-
-    @SerializedName("message")
-    val message: String = "",
-
-    @SerializedName("data")
-    val data: LiveStreamData? = null
+    @SerializedName("code") val code: Int = 0,
+    @SerializedName("data") val data: LiveStreamData? = null
 )
-
-data class LiveStreamData(
-    @SerializedName("durl")
-    val durl: List<LiveStreamUrl>? = null
-)
-
-data class LiveStreamUrl(
-    @SerializedName("url")
-    val url: String = "",
-
-    @SerializedName("length")
-    val length: Long = 0,
-
-    @SerializedName("order")
-    val order: Int = 0
-)
+data class LiveStreamData(@SerializedName("durl") val durl: List<LiveStreamUrl>? = null)
+data class LiveStreamUrl(@SerializedName("url") val url: String = "")
 ```
 
 ## 文件: main/java/com/bili/tv/bili_tv_app/models/Login.kt
@@ -369,7 +325,6 @@ import com.google.gson.annotations.SerializedName
 data class LoginQRCode(
     @SerializedName("url")
     val url: String = "",
-
     @SerializedName("qrcode_key")
     val qrcodeKey: String = ""
 )
@@ -377,10 +332,8 @@ data class LoginQRCode(
 data class LoginQRCodeResponse(
     @SerializedName("code")
     val code: Int = 0,
-
     @SerializedName("message")
     val message: String = "",
-
     @SerializedName("data")
     val data: LoginQRCodeData? = null
 )
@@ -388,7 +341,6 @@ data class LoginQRCodeResponse(
 data class LoginQRCodeData(
     @SerializedName("url")
     val url: String = "",
-
     @SerializedName("qrcode_key")
     val qrcodeKey: String = ""
 )
@@ -396,10 +348,8 @@ data class LoginQRCodeData(
 data class LoginStatusResponse(
     @SerializedName("code")
     val code: Int = 0,
-
     @SerializedName("message")
     val message: String = "",
-
     @SerializedName("data")
     val data: LoginStatusData? = null
 )
@@ -407,36 +357,27 @@ data class LoginStatusResponse(
 data class LoginStatusData(
     @SerializedName("code")
     val code: Int = 0,
-
     @SerializedName("message")
     val message: String = "",
-
     @SerializedName("refresh_token")
     val refreshToken: String? = null,
-
     @SerializedName("timestamp")
     val timestamp: Long = 0,
-
     @SerializedName("token_info")
     val tokenInfo: TokenInfo? = null,
-
     @SerializedName("cookie_info")
     val cookieInfo: CookieInfo? = null
 )
 
 data class TokenInfo(
     @SerializedName("mid")
-    val mid: Long = 0,
-
+    val mid: Long = 0,          // 关键修复：直接返回 mid
     @SerializedName("access_token")
     val accessToken: String = "",
-
     @SerializedName("refresh_token")
     val refreshToken: String = "",
-
     @SerializedName("expires_in")
     val expiresIn: Long = 0,
-
     @SerializedName("token_info")
     val tokenInfo: TokenInfoDetail? = null
 )
@@ -444,13 +385,10 @@ data class TokenInfo(
 data class TokenInfoDetail(
     @SerializedName("mid")
     val mid: Long = 0,
-
     @SerializedName("access_token")
     val accessToken: String = "",
-
     @SerializedName("refresh_token")
     val refreshToken: String = "",
-
     @SerializedName("expires_in")
     val expiresIn: Long = 0
 )
@@ -463,16 +401,12 @@ data class CookieInfo(
 data class Cookie(
     @SerializedName("name")
     val name: String = "",
-
     @SerializedName("value")
     val value: String = "",
-
     @SerializedName("http_only")
     val httpOnly: Int = 0,
-
     @SerializedName("expires")
     val expires: Int = 0,
-
     @SerializedName("secure")
     val secure: Int = 0
 )
@@ -871,65 +805,14 @@ package com.bili.tv.bili_tv_app.models
 import com.google.gson.annotations.SerializedName
 
 data class VideoDetail(
-    @SerializedName("bvid")
-    val bvid: String = "",
-
-    @SerializedName("aid")
-    val aid: Long = 0,
-
-    @SerializedName("title")
-    val title: String = "",
-
-    @SerializedName("desc")
-    val desc: String = "",
-
-    @SerializedName("pic")
-    val pic: String = "",
-
-    @SerializedName("owner")
-    val owner: Owner? = null,
-
-    @SerializedName("stat")
-    val stat: Stat? = null,
-
-    @SerializedName("pages")
-    val pages: List<Episode> = emptyList()
+    @SerializedName("bvid") val bvid: String = "",
+    @SerializedName("aid") val aid: Long = 0,
+    @SerializedName("title") val title: String = "",
+    @SerializedName("pic") val pic: String = "",
+    @SerializedName("pages") val pages: List<Episode> = emptyList()
 ) {
-    fun getPageIndex(cid: Long): Int {
-        return pages.indexOfFirst { it.cid == cid }
-    }
+    fun getPageIndex(cid: Long): Int = pages.indexOfFirst { it.cid == cid }.coerceAtLeast(0)
 }
-
-data class Owner(
-    @SerializedName("mid")
-    val mid: Long = 0,
-
-    @SerializedName("name")
-    val name: String = "",
-
-    @SerializedName("face")
-    val face: String = ""
-)
-
-data class Stat(
-    @SerializedName("view")
-    val view: Long = 0,
-
-    @SerializedName("danmaku")
-    val danmaku: Long = 0,
-
-    @SerializedName("reply")
-    val reply: Long = 0,
-
-    @SerializedName("favorite")
-    val favorite: Long = 0,
-
-    @SerializedName("coin")
-    val coin: Long = 0,
-
-    @SerializedName("share")
-    val share: Long = 0
-)
 ```
 
 ## 文件: main/java/com/bili/tv/bili_tv_app/models/VideoShot.kt
@@ -1118,6 +1001,116 @@ class SponsorBlockPlugin : Plugin {
 }
 ```
 
+## 文件: main/java/com/bili/tv/bili_tv_app/screens/category/CategoryFragment.kt
+```kt
+package com.bili.tv.bili_tv_app.screens.category
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.GridLayoutManager
+import com.bili.tv.bili_tv_app.R
+import com.bili.tv.bili_tv_app.databinding.FragmentCategoryBinding
+import com.bili.tv.bili_tv_app.models.Video
+import com.bili.tv.bili_tv_app.services.api.BilibiliApiService
+import com.bili.tv.bili_tv_app.widgets.VideoAdapter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
+
+class CategoryFragment : Fragment() {
+
+    private var _binding: FragmentCategoryBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var videoAdapter: VideoAdapter
+    private val videoList = mutableListOf<Video>()
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentCategoryBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupUI()
+        loadCategories()
+    }
+
+    private fun setupUI() {
+        // Setup video grid
+        videoAdapter = VideoAdapter(videoList) { video ->
+            navigateToPlayer(video)
+        }
+
+        binding.videosRecyclerView.apply {
+            layoutManager = GridLayoutManager(requireContext(), 4)
+            adapter = videoAdapter
+        }
+
+        // Setup back button
+        binding.backButton.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        // Setup refresh
+        binding.swipeRefresh.setOnRefreshListener {
+            loadCategories()
+        }
+    }
+
+    private fun loadCategories() {
+        lifecycleScope.launch {
+            binding.swipeRefresh.isRefreshing = true
+
+            // 这里可以加载分类列表，暂时使用推荐视频作为示例
+            val videos = withContext(Dispatchers.IO) {
+                BilibiliApiService.getInstance().getRecommendVideos(0)
+            }
+
+            videoList.clear()
+            videoList.addAll(videos)
+            videoAdapter.notifyDataSetChanged()
+
+            binding.swipeRefresh.isRefreshing = false
+
+            if (videoList.isEmpty()) {
+                binding.emptyView.visibility = View.VISIBLE
+                binding.videosRecyclerView.visibility = View.GONE
+            } else {
+                binding.emptyView.visibility = View.GONE
+                binding.videosRecyclerView.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun navigateToPlayer(video: Video) {
+        val fragment = com.bili.tv.bili_tv_app.screens.player.PlayerFragment.newInstance(
+            video.bvid,
+            video.title,
+            video.pic
+        )
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}
+```
+
 ## 文件: main/java/com/bili/tv/bili_tv_app/screens/home/HomeFragment.kt
 ```kt
 package com.bili.tv.bili_tv_app.screens.home
@@ -1187,6 +1180,11 @@ class HomeFragment : Fragment() {
         // Setup settings button
         binding.settingsButton.setOnClickListener {
             navigateToSettings()
+        }
+
+        // Setup category button
+        binding.categoryButton.setOnClickListener {
+            navigateToCategory()
         }
 
         // Setup user button
@@ -1277,6 +1275,14 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun navigateToCategory() {
+        val fragment = com.bili.tv.bili_tv_app.screens.category.CategoryFragment()
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
     private fun checkAndAutoPlayLastVideo() {
         if (SettingsService.autoPlayLastVideo && SettingsService.hasLastPlayedVideo()) {
             lifecycleScope.launch {
@@ -1345,10 +1351,10 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.bili.tv.bili_tv_app.databinding.FragmentLoginBinding
+import com.bili.tv.bili_tv_app.models.User
 import com.bili.tv.bili_tv_app.services.AuthService
 import com.bili.tv.bili_tv_app.services.api.AuthApi
 import com.journeyapps.barcodescanner.BarcodeEncoder
-import com.journeyapps.barcodescanner.DecoratedBarcodeView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1358,61 +1364,35 @@ class LoginFragment : Fragment() {
 
     private var _binding: FragmentLoginBinding? = null
     private val binding get() = _binding!!
-
-    private var qrcodeKey: String = ""
+    private var qrcodeKey = ""
     private var isPolling = false
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentLoginBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupUI()
+        binding.backButton.setOnClickListener { parentFragmentManager.popBackStack() }
         generateQRCode()
-    }
-
-    private fun setupUI() {
-        binding.backButton.setOnClickListener {
-            parentFragmentManager.popBackStack()
-        }
     }
 
     private fun generateQRCode() {
         lifecycleScope.launch {
             binding.loadingProgress.visibility = View.VISIBLE
-
-            val qrCode = withContext(Dispatchers.IO) {
-                AuthApi.getInstance().getQRCode()
-            }
-
+            val qrCode = withContext(Dispatchers.IO) { AuthApi.getInstance().getQRCode() }
             binding.loadingProgress.visibility = View.GONE
 
             if (qrCode.code == 0 && qrCode.data != null) {
                 qrcodeKey = qrCode.data.qrcodeKey
-
-                // Generate QR code image
-                try {
-                    val size = (resources.displayMetrics.widthPixels * 0.7).toInt().coerceAtMost(500)
-                    val barcodeEncoder = BarcodeEncoder()
-                    val bitmap = barcodeEncoder.encodeBitmap(
-                        qrCode.data.url,
-                        com.google.zxing.BarcodeFormat.QR_CODE,
-                        size,
-                        size
-                    )
-                    binding.qrCodeImage.setImageBitmap(bitmap)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    Toast.makeText(requireContext(), "二维码生成失败", Toast.LENGTH_SHORT).show()
-                }
-
-                // Start polling
+                val size = (resources.displayMetrics.widthPixels * 0.7).toInt().coerceAtMost(500)
+                val bitmap = BarcodeEncoder().encodeBitmap(
+                    qrCode.data.url,
+                    com.google.zxing.BarcodeFormat.QR_CODE,
+                    size, size
+                )
+                binding.qrCodeImage.setImageBitmap(bitmap)
                 startPolling()
             } else {
                 Toast.makeText(requireContext(), "获取二维码失败", Toast.LENGTH_SHORT).show()
@@ -1423,38 +1403,16 @@ class LoginFragment : Fragment() {
     private fun startPolling() {
         if (isPolling) return
         isPolling = true
-
         lifecycleScope.launch {
             while (isPolling && qrcodeKey.isNotEmpty()) {
-                delay(2000) // Poll every 2 seconds
-
-                val status = withContext(Dispatchers.IO) {
-                    AuthApi.getInstance().checkQRCodeStatus(qrcodeKey)
-                }
-
+                delay(2000)
+                val status = withContext(Dispatchers.IO) { AuthApi.getInstance().checkQRCodeStatus(qrcodeKey) }
                 status?.data?.let { data ->
                     when (data.code) {
-                        0 -> {
-                            // Login success
-                            isPolling = false
-                            onLoginSuccess(data)
-                        }
-                        86038 -> {
-                            // QR code expired
-                            isPolling = false
-                            Toast.makeText(requireContext(), "二维码已过期，请重新获取", Toast.LENGTH_SHORT).show()
-                            generateQRCode()
-                        }
-                        86101 -> {
-                            // User scanned but not confirmed
-                            // Continue polling
-                        }
-                        86090, 86000 -> {
-                            // Other errors, continue polling
-                        }
-                        else -> {
-                            // Continue polling
-                        }
+                        0 -> { isPolling = false; onLoginSuccess(data) }
+                        86038 -> { isPolling = false; Toast.makeText(requireContext(), "二维码已过期", Toast.LENGTH_SHORT).show(); generateQRCode() }
+                        86101 -> { /* 已扫码，未确认，继续轮询 */ }
+                        else -> { /* 继续轮询 */ }
                     }
                 }
             }
@@ -1462,89 +1420,61 @@ class LoginFragment : Fragment() {
     }
 
     private fun onLoginSuccess(data: com.bili.tv.bili_tv_app.models.LoginStatusData) {
-        Toast.makeText(requireContext(), "登录成功", Toast.LENGTH_SHORT).show()
-
-        // Save login info
         lifecycleScope.launch {
-            data.tokenInfo?.let { tokenInfo ->
-                data.cookieInfo?.cookies?.let { cookies ->
-                    val cookiesString = cookies.joinToString("; ") { "${it.name}=${it.value}" }
-
-                    // Get user info with priority: Cookie -> tokenInfo.mid -> DedeUserID from Cookie
-                    val user = withContext(Dispatchers.IO) {
-                        // Priority 1: Get user info via Cookie
-                        val userInfoByCookie = AuthApi.getInstance().getUserInfoByCookie(cookiesString)
-                        if (userInfoByCookie.code == 0 && userInfoByCookie.data?.card != null) {
-                            val card = userInfoByCookie.data.card!!
-                            com.bili.tv.bili_tv_app.models.User(
-                                mid = card.mid,
-                                uname = card.name,
-                                face = card.face,
-                                sign = card.sign,
-                                level = card.levelInfo?.currentLevel ?: 0,
-                                vipType = card.vipInfo?.type ?: 0,
-                                vipStatus = card.vipInfo?.status ?: 0
-                            )
-                        } else {
-                            // Priority 2: Get user info via tokenInfo.mid
-                            val mid = tokenInfo.mid.takeIf { it > 0 } ?: tokenInfo.tokenInfo?.mid ?: 0
-                            if (mid > 0) {
-                                val userInfo = AuthApi.getInstance().getLoginInfo(mid)
-                                if (userInfo.code == 0 && userInfo.data?.card != null) {
-                                    val card = userInfo.data.card!!
-                                    com.bili.tv.bili_tv_app.models.User(
-                                        mid = card.mid,
-                                        uname = card.name,
-                                        face = card.face,
-                                        sign = card.sign,
-                                        level = card.levelInfo?.currentLevel ?: 0,
-                                        vipType = card.vipInfo?.type ?: 0,
-                                        vipStatus = card.vipInfo?.status ?: 0
-                                    )
-                                } else {
-                                    // Priority 3: Get DedeUserID from Cookie
-                                    val dedeUserId = cookies.find { it.name == "DedeUserID" }?.value?.toLongOrNull() ?: 0
-                                    if (dedeUserId > 0) {
-                                        val userInfo = AuthApi.getInstance().getLoginInfo(dedeUserId)
-                                        if (userInfo.code == 0 && userInfo.data?.card != null) {
-                                            val card = userInfo.data.card!!
-                                            com.bili.tv.bili_tv_app.models.User(
-                                                mid = card.mid,
-                                                uname = card.name,
-                                                face = card.face,
-                                                sign = card.sign,
-                                                level = card.levelInfo?.currentLevel ?: 0,
-                                                vipType = card.vipInfo?.type ?: 0,
-                                                vipStatus = card.vipInfo?.status ?: 0
-                                            )
-                                        } else {
-                                            null
-                                        }
-                                    } else {
-                                        null
-                                    }
-                                }
-                            } else {
-                                null
-                            }
-                        }
-                    }
-
-                    user?.let {
-                        AuthService.saveLoginInfo(
-                            accessToken = tokenInfo.accessToken,
-                            refreshToken = tokenInfo.refreshToken,
-                            expiresIn = tokenInfo.expiresIn,
-                            cookies = cookiesString,
-                            user = it
-                        )
-                    }
+            try {
+                val cookiesList = data.cookieInfo?.cookies
+                if (cookiesList.isNullOrEmpty()) {
+                    Toast.makeText(requireContext(), "登录信息不完整", Toast.LENGTH_SHORT).show()
+                    return@launch
                 }
-            }
+                val cookiesString = cookiesList.joinToString("; ") { "${it.name}=${it.value}" }
 
-            // Delay to ensure persistence is complete
-            delay(300)
-            parentFragmentManager.popBackStack()
+                // 优先通过 Cookie 获取用户信息
+                val navResp = withContext(Dispatchers.IO) { AuthApi.getInstance().getUserInfoByCookie(cookiesString) }
+                val user = if (navResp.code == 0 && navResp.data?.card != null) {
+                    val card = navResp.data.card!!
+                    User(
+                        mid = card.mid,
+                        uname = card.name,
+                        face = card.face,
+                        sign = card.sign,
+                        level = card.levelInfo?.currentLevel ?: 0,
+                        vipType = card.vipInfo?.type ?: 0,
+                        vipStatus = card.vipInfo?.status ?: 0
+                    )
+                } else {
+                    // 降级：从 tokenInfo.mid 获取
+                    val mid = data.tokenInfo?.mid ?: 0
+                    if (mid > 0) {
+                        val cardResp = withContext(Dispatchers.IO) { AuthApi.getInstance().getLoginInfo(mid) }
+                        cardResp.data?.card?.let {
+                            User(
+                                mid = it.mid,
+                                uname = it.name,
+                                face = it.face,
+                                sign = it.sign,
+                                level = it.levelInfo?.currentLevel ?: 0,
+                                vipType = it.vipInfo?.type ?: 0,
+                                vipStatus = it.vipInfo?.status ?: 0
+                            )
+                        } ?: return@launch
+                    } else return@launch
+                }
+
+                AuthService.saveLoginInfo(
+                    accessToken = data.tokenInfo?.accessToken ?: "",
+                    refreshToken = data.tokenInfo?.refreshToken ?: "",
+                    expiresIn = data.tokenInfo?.expiresIn ?: 0,
+                    cookies = cookiesString,
+                    user = user
+                )
+                delay(300)
+                parentFragmentManager.popBackStack()
+                Toast.makeText(requireContext(), "登录成功", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(requireContext(), "登录异常: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -1867,7 +1797,25 @@ class PlayerFragment : Fragment() {
 
     // 触摸手势
     private var touchStartY = 0f
+    private var touchStartX = 0f
     private val swipeMinDistance = 100f  // 最小滑动距离（像素）
+    
+    // 播放模式
+    enum class PlaybackMode {
+        SEQUENTIAL,  // 顺序播放
+        LOOP_ALL,    // 列表循环
+        LOOP_ONE,    // 单曲循环
+        RANDOM       // 随机播放
+    }
+    
+    private var playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL
+    
+    // 手势防抖
+    private val gestureDebounceMs = 500L
+    private var lastGestureTime = 0L
+    
+    // 加载状态
+    private var isLoading = false
 
     companion object {
         private const val ARG_BVID = "bvid"
@@ -2060,17 +2008,36 @@ class PlayerFragment : Fragment() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     touchStartY = event.y
+                    touchStartX = event.x
                     true
                 }
                 MotionEvent.ACTION_UP -> {
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastGestureTime < gestureDebounceMs) {
+                        return@setOnTouchListener true
+                    }
+                    lastGestureTime = currentTime
+
                     val deltaY = event.y - touchStartY
-                    if (Math.abs(deltaY) > swipeMinDistance) {
+                    val deltaX = event.x - touchStartX
+
+                    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > swipeMinDistance) {
+                        // 上下滑动：切换分类视频或推荐直播
                         if (deltaY > 0) {
                             // 向下滑动 -> 下一个视频/推荐直播
                             if (isLiveMode) switchRecommendLiveRoom(1) else switchCategoryVideo(1)
                         } else {
                             // 向上滑动 -> 上一个视频/推荐直播
                             if (isLiveMode) switchRecommendLiveRoom(-1) else switchCategoryVideo(-1)
+                        }
+                    } else if (Math.abs(deltaX) > swipeMinDistance) {
+                        // 左右滑动：切换上一个/下一个
+                        if (deltaX > 0) {
+                            // 向右滑动 -> 下一个
+                            playNext()
+                        } else {
+                            // 向左滑动 -> 上一个
+                            playPrev()
                         }
                     }
                     true
@@ -2241,40 +2208,70 @@ class PlayerFragment : Fragment() {
     }
 
     private fun switchEpisode(direction: Int) {
-        if (episodeList.isEmpty()) return
+        if (isLoading || episodeList.isEmpty()) return
 
         val newIndex = currentEpisodeIndex + direction
-        if (newIndex < 0 || newIndex >= episodeList.size) return
+        if (newIndex < 0 || newIndex >= episodeList.size) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，处理边界情况
+                val loopIndex = if (newIndex < 0) episodeList.size - 1 else 0
+                currentEpisodeIndex = loopIndex
+            } else {
+                return
+            }
+        } else {
+            currentEpisodeIndex = newIndex
+        }
 
-        currentEpisodeIndex = newIndex
         val newEpisode = episodeList[currentEpisodeIndex]
         cid = newEpisode.cid
 
-        showSwitchOverlay("第${newEpisode.page}集: ${newEpisode.part}")
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new episode
         lifecycleScope.launch {
-            val videoUrl = withContext(Dispatchers.IO) {
-                BilibiliApiService.getInstance().getPlayUrl(aid, cid, SettingsService.defaultQuality)
-            }
+            try {
+                val videoUrl = withContext(Dispatchers.IO) {
+                    BilibiliApiService.getInstance().getPlayUrl(aid, cid, SettingsService.defaultQuality)
+                }
 
-            videoUrl?.let {
-                playVideo(it)
-                saveLastPlayedVideo()
+                videoUrl?.let {
+                    playVideo(it)
+                    saveLastPlayedVideo()
+                    showSwitchOverlay("第${newEpisode.page}集: ${newEpisode.part}")
+                } ?: run {
+                    showSwitchOverlay("加载失败")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
             }
         }
     }
 
     private fun switchCategoryVideo(direction: Int) {
-        if (categoryVideoList.isEmpty()) return
+        if (isLoading || categoryVideoList.isEmpty()) return
 
         val newIndex = currentCategoryVideoIndex + direction
-        if (newIndex < 0 || newIndex >= categoryVideoList.size) return
+        if (newIndex < 0 || newIndex >= categoryVideoList.size) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，处理边界情况
+                val loopIndex = if (newIndex < 0) categoryVideoList.size - 1 else 0
+                currentCategoryVideoIndex = loopIndex
+            } else {
+                return
+            }
+        } else {
+            currentCategoryVideoIndex = newIndex
+        }
 
-        currentCategoryVideoIndex = newIndex
-        val newVideo = categoryVideoList[newIndex]
+        val newVideo = categoryVideoList[currentCategoryVideoIndex]
 
-        showSwitchOverlay(newVideo.title)
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new video
         bvid = newVideo.bvid
@@ -2284,67 +2281,137 @@ class PlayerFragment : Fragment() {
         aid = newVideo.aid
         currentEpisodeIndex = 0
 
-        loadVideo()
+        lifecycleScope.launch {
+            try {
+                loadVideo()
+                showSwitchOverlay(newVideo.title)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     private fun switchFollowLiveRoom(direction: Int) {
-        if (followLiveList.isEmpty()) return
+        if (isLoading || followLiveList.isEmpty()) return
 
         val newIndex = currentFollowLiveIndex + direction
-        if (newIndex < 0) return
-        if (newIndex >= followLiveList.size) {
+        if (newIndex < 0) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，回到最后一个
+                currentFollowLiveIndex = followLiveList.size - 1
+            } else {
+                return
+            }
+        } else if (newIndex >= followLiveList.size) {
             // Load next page
+            showSwitchOverlay("加载中...")
+            isLoading = true
             lifecycleScope.launch {
-                val moreRooms = withContext(Dispatchers.IO) {
-                    BilibiliApiService.getInstance().getFollowLiveRooms((newIndex / 20) + 1)
-                }
-                if (moreRooms.isNotEmpty()) {
-                    followLiveList += moreRooms
-                    switchFollowLiveRoom(direction)
+                try {
+                    val moreRooms = withContext(Dispatchers.IO) {
+                        BilibiliApiService.getInstance().getFollowLiveRooms((newIndex / 20) + 1)
+                    }
+                    if (moreRooms.isNotEmpty()) {
+                        followLiveList += moreRooms
+                        switchFollowLiveRoom(direction)
+                    } else {
+                        showSwitchOverlay("没有更多直播间")
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    showSwitchOverlay("加载失败")
+                } finally {
+                    isLoading = false
                 }
             }
             return
+        } else {
+            currentFollowLiveIndex = newIndex
         }
 
-        currentFollowLiveIndex = newIndex
-        val newRoom = followLiveList[newIndex]
+        val newRoom = followLiveList[currentFollowLiveIndex]
 
-        showSwitchOverlay(newRoom.title)
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new live
         roomId = newRoom.roomId
         title = newRoom.title
-        loadLiveStream()
+
+        lifecycleScope.launch {
+            try {
+                loadLiveStream()
+                showSwitchOverlay(newRoom.title)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     private fun switchRecommendLiveRoom(direction: Int) {
-        if (recommendLiveList.isEmpty()) return
+        if (isLoading || recommendLiveList.isEmpty()) return
 
         val newIndex = currentRecommendLiveIndex + direction
-        if (newIndex < 0) return
-        if (newIndex >= recommendLiveList.size) {
+        if (newIndex < 0) {
+            if (playbackMode == PlaybackMode.LOOP_ALL) {
+                // 列表循环，回到最后一个
+                currentRecommendLiveIndex = recommendLiveList.size - 1
+            } else {
+                return
+            }
+        } else if (newIndex >= recommendLiveList.size) {
             // Load next page
+            showSwitchOverlay("加载中...")
+            isLoading = true
             lifecycleScope.launch {
-                val moreRooms = withContext(Dispatchers.IO) {
-                    BilibiliApiService.getInstance().getRecommendLiveRooms((newIndex / 20) + 1)
-                }
-                if (moreRooms.isNotEmpty()) {
-                    recommendLiveList += moreRooms
-                    switchRecommendLiveRoom(direction)
+                try {
+                    val moreRooms = withContext(Dispatchers.IO) {
+                        BilibiliApiService.getInstance().getRecommendLiveRooms((newIndex / 20) + 1)
+                    }
+                    if (moreRooms.isNotEmpty()) {
+                        recommendLiveList += moreRooms
+                        switchRecommendLiveRoom(direction)
+                    } else {
+                        showSwitchOverlay("没有更多直播间")
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    showSwitchOverlay("加载失败")
+                } finally {
+                    isLoading = false
                 }
             }
             return
+        } else {
+            currentRecommendLiveIndex = newIndex
         }
 
-        currentRecommendLiveIndex = newIndex
-        val newRoom = recommendLiveList[newIndex]
+        val newRoom = recommendLiveList[currentRecommendLiveIndex]
 
-        showSwitchOverlay(newRoom.title)
+        showSwitchOverlay("加载中...")
+        isLoading = true
 
         // Load new live
         roomId = newRoom.roomId
         title = newRoom.title
-        loadLiveStream()
+
+        lifecycleScope.launch {
+            try {
+                loadLiveStream()
+                showSwitchOverlay(newRoom.title)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                showSwitchOverlay("加载失败")
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
     private fun showSwitchOverlay(text: String) {
@@ -2360,7 +2427,70 @@ class PlayerFragment : Fragment() {
     private fun playNextEpisode() {
         if (episodeList.size > currentEpisodeIndex + 1) {
             switchEpisode(1)
+        } else if (playbackMode == PlaybackMode.LOOP_ALL) {
+            // 列表循环，回到第一集
+            currentEpisodeIndex = -1
+            switchEpisode(1)
         }
+    }
+    
+    private fun playNext() {
+        when {
+            isLiveMode -> {
+                // 直播模式：优先切换关注的直播间，然后切换推荐直播间
+                if (followLiveList.isNotEmpty() && currentFollowLiveIndex < followLiveList.size - 1) {
+                    switchFollowLiveRoom(1)
+                } else if (recommendLiveList.isNotEmpty()) {
+                    switchRecommendLiveRoom(1)
+                }
+            }
+            else -> {
+                // 点播模式：优先切换分集，然后切换分类视频
+                if (episodeList.size > currentEpisodeIndex + 1) {
+                    switchEpisode(1)
+                } else if (categoryVideoList.isNotEmpty()) {
+                    switchCategoryVideo(1)
+                } else if (playbackMode == PlaybackMode.LOOP_ALL) {
+                    // 列表循环，回到第一集
+                    currentEpisodeIndex = -1
+                    switchEpisode(1)
+                }
+            }
+        }
+    }
+    
+    private fun playPrev() {
+        when {
+            isLiveMode -> {
+                // 直播模式：优先切换关注的直播间，然后切换推荐直播间
+                if (followLiveList.isNotEmpty() && currentFollowLiveIndex > 0) {
+                    switchFollowLiveRoom(-1)
+                } else if (recommendLiveList.isNotEmpty() && currentRecommendLiveIndex > 0) {
+                    switchRecommendLiveRoom(-1)
+                }
+            }
+            else -> {
+                // 点播模式：优先切换分集，然后切换分类视频
+                if (currentEpisodeIndex > 0) {
+                    switchEpisode(-1)
+                } else if (categoryVideoList.isNotEmpty() && currentCategoryVideoIndex > 0) {
+                    switchCategoryVideo(-1)
+                } else if (playbackMode == PlaybackMode.LOOP_ALL) {
+                    // 列表循环，回到最后一集
+                    currentEpisodeIndex = episodeList.size
+                    switchEpisode(-1)
+                }
+            }
+        }
+    }
+    
+    private fun setPlaybackMode(mode: PlaybackMode) {
+        playbackMode = mode
+        // 可以在这里添加持久化逻辑，保存到SettingsService
+    }
+    
+    private fun getPlaybackMode(): PlaybackMode {
+        return playbackMode
     }
 
     private fun savePlaybackProgress() {
@@ -2553,12 +2683,8 @@ package com.bili.tv.bili_tv_app.services
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.bili.tv.bili_tv_app.models.LoginQRCode
-import com.bili.tv.bili_tv_app.models.LoginStatusResponse
 import com.bili.tv.bili_tv_app.models.User
-import com.bili.tv.bili_tv_app.services.api.AuthApi
 import com.google.gson.Gson
-import java.util.concurrent.TimeUnit
 
 fun SharedPreferences.edit(block: SharedPreferences.Editor.() -> Unit) {
     val editor = edit()
@@ -2571,7 +2697,6 @@ object AuthService {
     private lateinit var sharedPreferences: SharedPreferences
     private val gson = Gson()
 
-    // Keys
     private object Keys {
         const val USER_INFO = "user_info"
         const val ACCESS_TOKEN = "access_token"
@@ -2581,13 +2706,10 @@ object AuthService {
         const val LOGGED_IN = "logged_in"
     }
 
-    // Current user
     var currentUser: User? = null
         private set
-
     var cookies: String = ""
         private set
-
     var accessToken: String = ""
         private set
 
@@ -2599,7 +2721,7 @@ object AuthService {
         restoreLoginState()
     }
 
-    fun restoreLoginState() {
+    private fun restoreLoginState() {
         try {
             val userInfoJson = sharedPreferences.getString(Keys.USER_INFO, "")
             if (!userInfoJson.isNullOrEmpty()) {
@@ -2619,7 +2741,7 @@ object AuthService {
         cookies: String,
         user: User
     ) {
-        val expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(expiresIn)
+        val expiryTime = System.currentTimeMillis() + (expiresIn * 1000)
 
         sharedPreferences.edit {
             putString(Keys.ACCESS_TOKEN, accessToken)
@@ -2636,15 +2758,10 @@ object AuthService {
     }
 
     fun getCookieValue(cookieName: String): String {
-        return cookies.split(";")
-            .find { it.trim().startsWith("$cookieName=") }
-            ?.substringAfter("=")
-            ?.trim() ?: ""
+        return cookies.split(";").find { it.trim().startsWith("$cookieName=") }?.substringAfter("=")?.trim() ?: ""
     }
 
-    fun getDedeUserId(): String {
-        return getCookieValue("DedeUserID")
-    }
+    fun getDedeUserId(): String = getCookieValue("DedeUserID")
 
     fun clearLogin() {
         sharedPreferences.edit {
@@ -2655,69 +2772,9 @@ object AuthService {
             remove(Keys.USER_INFO)
             remove(Keys.LOGGED_IN)
         }
-
         currentUser = null
         cookies = ""
         accessToken = ""
-    }
-
-    suspend fun getQRCode(): LoginQRCode? {
-        return try {
-            val response = AuthApi.getInstance().getQRCode()
-            if (response.code == 0 && response.data != null) {
-                LoginQRCode(url = response.data.url, qrcodeKey = response.data.qrcodeKey)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-    suspend fun checkQRCodeStatus(qrcodeKey: String): LoginStatusResponse? {
-        return try {
-            val response = AuthApi.getInstance().checkQRCodeStatus(qrcodeKey)
-            response
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-    fun getRefreshToken(): String {
-        return sharedPreferences.getString(Keys.REFRESH_TOKEN, "") ?: ""
-    }
-
-    suspend fun refreshTokenIfNeeded(): Boolean {
-        val expiry = sharedPreferences.getLong(Keys.TOKEN_EXPIRY, 0L)
-
-        // Refresh if token expires within 1 hour
-        if (System.currentTimeMillis() > expiry - TimeUnit.HOURS.toMillis(1)) {
-            return refreshToken()
-        }
-        return true
-    }
-
-    private suspend fun refreshToken(): Boolean {
-        return try {
-            val refreshToken = getRefreshToken()
-            if (refreshToken.isEmpty()) return false
-
-            // In real implementation, call refresh token API
-            // For now, return false to indicate refresh failed
-            false
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
-        }
-    }
-
-    fun updateUserInfo(user: User) {
-        sharedPreferences.edit {
-            putString(Keys.USER_INFO, gson.toJson(user))
-        }
-        currentUser = user
     }
 }
 ```
@@ -2956,23 +3013,22 @@ package com.bili.tv.bili_tv_app.services.api
 import com.bili.tv.bili_tv_app.models.LoginQRCodeResponse
 import com.bili.tv.bili_tv_app.models.LoginStatusResponse
 import com.google.gson.Gson
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
-class AuthApi {
+class AuthApi private constructor() {
 
-    private val client: OkHttpClient
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
     private val gson = Gson()
-    private val baseUrl = "https://passport.bilibili.com"
 
     companion object {
-        private const val APP_KEY = "4409e2ce8ffd12b8"
-
         @Volatile
         private var instance: AuthApi? = null
-
         fun getInstance(): AuthApi {
             return instance ?: synchronized(this) {
                 instance ?: AuthApi().also { instance = it }
@@ -2980,65 +3036,33 @@ class AuthApi {
         }
     }
 
-    init {
-        client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
-
     suspend fun getQRCode(): LoginQRCodeResponse {
-        val url = "$baseUrl/x/passport-login/web/qrcode/generate?appkey=$APP_KEY"
+        val url = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
         val request = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://passport.bilibili.com")
             .build()
-
         return try {
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             gson.fromJson(body, LoginQRCodeResponse::class.java)
         } catch (e: Exception) {
-            e.printStackTrace()
             LoginQRCodeResponse(code = -1, message = e.message ?: "Network error")
         }
     }
 
     suspend fun checkQRCodeStatus(qrcodeKey: String): LoginStatusResponse {
-        val url = "$baseUrl/x/passport-login/web/qrcode/poll?appkey=$APP_KEY&qrcode_key=$qrcodeKey"
+        val url = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=$qrcodeKey"
         val request = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://passport.bilibili.com")
             .build()
-
         return try {
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             gson.fromJson(body, LoginStatusResponse::class.java)
         } catch (e: Exception) {
-            e.printStackTrace()
             LoginStatusResponse(code = -1, message = e.message ?: "Network error")
-        }
-    }
-
-    suspend fun getLoginInfo(mid: Long): UserInfoResponse {
-        val url = "https://api.bilibili.com/x/web-interface/card?mid=$mid"
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://space.bilibili.com")
-            .build()
-
-        return try {
-            val response = client.newCall(request).execute()
-            val body = response.body?.string()
-            gson.fromJson(body, UserInfoResponse::class.java)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            UserInfoResponse(code = -1, message = e.message ?: "Network error")
         }
     }
 
@@ -3047,16 +3071,28 @@ class AuthApi {
         val request = Request.Builder()
             .url(url)
             .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .addHeader("Referer", "https://www.bilibili.com")
             .addHeader("Cookie", cookies)
             .build()
-
         return try {
             val response = client.newCall(request).execute()
             val body = response.body?.string()
             gson.fromJson(body, UserInfoResponse::class.java)
         } catch (e: Exception) {
-            e.printStackTrace()
+            UserInfoResponse(code = -1, message = e.message ?: "Network error")
+        }
+    }
+
+    suspend fun getLoginInfo(mid: Long): UserInfoResponse {
+        val url = "https://api.bilibili.com/x/web-interface/card?mid=$mid"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .build()
+        return try {
+            val response = client.newCall(request).execute()
+            val body = response.body?.string()
+            gson.fromJson(body, UserInfoResponse::class.java)
+        } catch (e: Exception) {
             UserInfoResponse(code = -1, message = e.message ?: "Network error")
         }
     }
@@ -3066,11 +3102,7 @@ class AuthApi {
         val message: String = "",
         val data: UserInfoData? = null
     )
-
-    data class UserInfoData(
-        val card: UserCard? = null
-    )
-
+    data class UserInfoData(val card: UserCard? = null)
     data class UserCard(
         val mid: Long = 0,
         val name: String = "",
@@ -3079,32 +3111,8 @@ class AuthApi {
         val levelInfo: LevelInfo? = null,
         val vipInfo: VipInfo? = null
     )
-
-    data class LevelInfo(
-        val currentLevel: Int = 0,
-        val currentMin: Int = 0,
-        val currentExp: Int = 0,
-        val nextExp: Int = 0
-    )
-
-    data class VipInfo(
-        val type: Int = 0,
-        val status: Int = 0,
-        val dueDate: Long = 0,
-        val vipPayType: Int = 0,
-        val themeType: Int = 0,
-        val label: Label? = null
-    )
-
-    data class Label(
-        val path: String = "",
-        val text: String = "",
-        val labelTheme: String = "",
-        val textColor: String = "",
-        val bgStyle: Int = 0,
-        val bgColor: String = "",
-        val borderColor: String = ""
-    )
+    data class LevelInfo(val currentLevel: Int = 0)
+    data class VipInfo(val type: Int = 0, val status: Int = 0)
 }
 ```
 
@@ -4036,6 +4044,143 @@ XML文件内容
 </shape>
 ```
 
+## 文件: main/res/layout/custom_controller.xml
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:background="#CC000000"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <androidx.media3.ui.DefaultTimeBar
+        android:id="@id/exo_progress"
+        android:layout_width="match_parent"
+        android:layout_height="26dp"
+        app:played_color="@color/primary"
+        app:unplayed_color="#66FFFFFF"
+        app:buffered_color="#33FFFFFF" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@id/exo_position"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#FFFFFF"
+            android:text="00:00" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="/"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp" />
+
+        <TextView
+            android:id="@id/exo_duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="#FFFFFF"
+            android:text="00:00" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <ImageButton
+            android:id="@id/exo_play"
+            style="@style/ExoMediaButton.Play"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <ImageButton
+            android:id="@id/exo_next"
+            style="@style/ExoMediaButton.Next"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <ImageButton
+            android:id="@+id/custom_settings"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_preferences"
+            android:contentDescription="设置" />
+
+    </LinearLayout>
+</LinearLayout>
+```
+
+## 文件: main/res/layout/fragment_category.xml
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark">
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/videos_recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="16dp"
+            android:clipToPadding="false"
+            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            app:spanCount="4" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+    <Button
+        android:id="@+id/back_button"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_menu_revert"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/empty_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="暂无分类数据"
+        android:textSize="18sp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+```
+
 ## 文件: main/res/layout/fragment_home.xml
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -4085,6 +4230,15 @@ XML文件内容
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_preferences"
             android:contentDescription="@string/nav_settings"
+            app:tint="@color/text_primary" />
+
+        <ImageButton
+            android:id="@+id/category_button"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_crop"
+            android:contentDescription="分类"
             app:tint="@color/text_primary" />
 
         <ImageButton
@@ -4227,8 +4381,11 @@ XML文件内容
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
     android:background="@color/player_background"
     tools:context=".screens.player.PlayerFragment">
 
@@ -4237,9 +4394,11 @@ XML文件内容
         android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
         app:show_buffering="when_playing"
         app:use_controller="true"
-        app:controller_layout_id="@layout/exo_player_control_view" />
+        app:controller_layout_id="@layout/custom_controller" />
 
     <!-- Danmaku Layer -->
     <com.bili.tv.bili_tv_app.widgets.DanmakuView
@@ -4303,13 +4462,12 @@ XML文件内容
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:background="@android:color/black"
+        android:background="#CC000000"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
         android:textColor="@android:color/white"
         android:textSize="16sp"
-        android:visibility="gone"
-        tools:text="切换到下一集" />
+        android:visibility="gone" />
 
     <!-- Bottom hint text -->
     <TextView
@@ -4318,12 +4476,12 @@ XML文件内容
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center"
         android:layout_marginBottom="32dp"
-        android:background="@android:color/black"
+        android:background="#CC000000"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
-        android:text="左右键切换分集/直播间，上下键切换分类视频/推荐直播"
+        android:text="←→切换分集/直播间  ↑↓切换分类视频/推荐直播  |  垂直滑动也可切换"
         android:textColor="@android:color/white"
-        android:textSize="14sp"
+        android:textSize="12sp"
         android:visibility="visible" />
 
 </FrameLayout>

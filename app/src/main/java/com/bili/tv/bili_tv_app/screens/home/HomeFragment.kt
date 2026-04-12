@@ -67,6 +67,11 @@ class HomeFragment : Fragment() {
             navigateToSettings()
         }
 
+        // Setup category button
+        binding.categoryButton.setOnClickListener {
+            navigateToCategory()
+        }
+
         // Setup user button
         binding.userButton.setOnClickListener {
             if (AuthService.isLoggedIn) {
@@ -153,6 +158,14 @@ class HomeFragment : Fragment() {
                 Toast.LENGTH_SHORT
             ).show()
         }
+    }
+
+    private fun navigateToCategory() {
+        val fragment = com.bili.tv.bili_tv_app.screens.category.CategoryFragment()
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.fragment_container, fragment)
+            .addToBackStack(null)
+            .commit()
     }
 
     private fun checkAndAutoPlayLastVideo() {
