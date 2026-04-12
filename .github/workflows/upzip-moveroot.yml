@@ -1,0 +1,88 @@
+name: Unpack ZIP and Move Subdirectory Contents to Root
+
+on:
+  push:
+    paths: ['**.zip']           # 当推送 ZIP 文件时自动触发
+  workflow_dispatch:            # 手动触发，可选指定子目录名
+    inputs:
+      subdir:
+        description: '要移动到根目录的子目录名（可选，例如 "04-13"）'
+        required: false
+        default: ''
+
+jobs:
+  unpack-and-move:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ----- 1. 处理所有 ZIP 文件 -----
+      - name: 解压所有 ZIP 文件并平铺到根目录
+        run: |
+          # 启用隐藏文件匹配
+          shopt -s dotglob
+
+          # 查找根目录下所有 .zip 文件
+          for zipfile in *.zip; do
+            # 如果没有 zip 文件，跳过循环
+            [ -e "$zipfile" ] || continue
+
+            echo "正在处理: $zipfile"
+            
+            # 创建临时目录（以 zip 文件名命名，避免冲突）
+            temp_dir="${zipfile%.zip}_temp"
+            mkdir -p "$temp_dir"
+            
+            # 解压到临时目录（覆盖已存在文件）
+            unzip -o "$zipfile" -d "$temp_dir"
+            
+            # 智能移动：若临时目录内只有一个子目录且无其他文件，则移动该子目录的内容
+            # 否则移动临时目录内的全部内容到根目录
+            items=("$temp_dir"/*)
+            if [ ${#items[@]} -eq 1 ] && [ -d "${items[0]}" ]; then
+              # 只有一个子目录 → 移动其内部所有内容到根目录
+              subdir="${items[0]}"
+              echo "检测到顶层目录 '$subdir'，将其内容移动到根目录"
+              mv "$subdir"/* . 2>/dev/null || true
+              # 同时处理隐藏文件
+              mv "$subdir"/.[!.]* . 2>/dev/null || true
+              rmdir "$subdir"
+            else
+              # 多个文件/目录，或直接就是文件 → 全部移动到根目录
+              echo "移动临时目录中的所有内容到根目录"
+              mv "$temp_dir"/* . 2>/dev/null || true
+              mv "$temp_dir"/.[!.]* . 2>/dev/null || true
+            fi
+            
+            # 删除临时目录和原 ZIP 文件
+            rm -rf "$temp_dir"
+            rm -f "$zipfile"
+          done
+
+      # ----- 2. 手动触发时移动指定子目录（可选）-----
+      - name: 移动手动指定的子目录到根目录
+        if: inputs.subdir != ''
+        run: |
+          shopt -s dotglob
+          SUBDIR="${{ inputs.subdir }}"
+          if [ -d "$SUBDIR" ]; then
+            echo "移动子目录 '$SUBDIR' 的所有内容到根目录"
+            mv "$SUBDIR"/* . 2>/dev/null || true
+            mv "$SUBDIR"/.[!.]* . 2>/dev/null || true
+            rmdir "$SUBDIR" 2>/dev/null || echo "警告：无法删除子目录（可能不为空）"
+          else
+            echo "错误：子目录 '$SUBDIR' 不存在"
+            exit 1
+          fi
+
+      # ----- 3. 提交所有更改 -----
+      - name: 提交更改
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "自动解压 ZIP 并整理目录结构"
+          git push
