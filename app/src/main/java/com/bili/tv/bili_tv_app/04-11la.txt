@@ -1,0 +1,163 @@
+根据你的反馈，我逐一分析并给出修改方案。
+
+问题1：遥控器上下、左右、OK键无效
+原因分析
+PlayerFragment 中按键监听设置在 playerView 上，但 playerView 内部的 SurfaceView 会拦截焦点，导致外部监听不生效。
+
+ExoPlayer 默认会消费方向键和 OK 键用于快进/快退和播放/暂停，需要先拦截这些按键，阻止传递给 PlayerView。
+
+playerView 需要设置 useController 为 false 或自己完全接管按键。
+
+没有处理 OK 键（KEYCODE_DPAD_CENTER 或 KEYCODE_ENTER）的暂停/播放。
+
+修改方案
+修改 PlayerFragment.kt 中的 setupKeyListener 方法
+kotlin
+private fun setupKeyListener() {
+    // 让根布局获得焦点，并拦截所有按键
+    binding.playerRoot.isFocusable = true
+    binding.playerRoot.isFocusableInTouchMode = true
+    binding.playerRoot.requestFocus()
+    
+    binding.playerRoot.setOnKeyListener { _, keyCode, event ->
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastKeyPressTime < keyDebounceMs) {
+                return@setOnKeyListener true
+            }
+            lastKeyPressTime = currentTime
+
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> {
+                    if (isLiveMode) switchFollowLiveRoom(-1) else switchEpisode(-1)
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                    if (isLiveMode) switchFollowLiveRoom(1) else switchEpisode(1)
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    if (isLiveMode) switchRecommendLiveRoom(1) else switchCategoryVideo(1)
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (isLiveMode) switchRecommendLiveRoom(-1) else switchCategoryVideo(-1)
+                    true
+                }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    // OK键：播放/暂停
+                    player?.let {
+                        if (it.isPlaying) it.pause() else it.play()
+                    }
+                    true
+                }
+                else -> false
+            }
+        } else false
+    }
+    
+    // 可选：禁用 PlayerView 内部的默认按键处理，避免冲突
+    binding.playerView.useController = true
+    // 仍然显示控制条，但方向键已被我们拦截
+}
+在 onViewCreated 中调用后，确保焦点正确
+kotlin
+override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    super.onViewCreated(view, savedInstanceState)
+    setupPlayer()
+    setupKeyListener()
+    // ... 其他代码
+}
+
+override fun onResume() {
+    super.onResume()
+    binding.playerRoot.requestFocus()  // 确保根布局获得焦点
+}
+问题2：增加手势上下滑动切换视频
+在 PlayerFragment 中添加触摸监听，识别垂直滑动，与遥控器上下键执行相同逻辑。
+
+修改 PlayerFragment.kt
+在类中添加变量：
+
+kotlin
+private var touchStartY = 0f
+private val swipeMinDistance = 100f  // 最小滑动距离（像素）
+在 setupKeyListener 之后添加手势监听：
+
+kotlin
+private fun setupTouchGesture() {
+    binding.playerRoot.setOnTouchListener { _, event ->
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                touchStartY = event.y
+                true
+            }
+            MotionEvent.ACTION_UP -> {
+                val deltaY = event.y - touchStartY
+                if (Math.abs(deltaY) > swipeMinDistance) {
+                    if (deltaY > 0) {
+                        // 向下滑动 -> 下一个视频/推荐直播
+                        if (isLiveMode) switchRecommendLiveRoom(1) else switchCategoryVideo(1)
+                    } else {
+                        // 向上滑动 -> 上一个视频/推荐直播
+                        if (isLiveMode) switchRecommendLiveRoom(-1) else switchCategoryVideo(-1)
+                    }
+                }
+                true
+            }
+            else -> false
+        }
+    }
+}
+在 onViewCreated 中调用 setupTouchGesture()。
+
+注意：如果与播放器控制栏的手势冲突，可调整优先级，或者只在非控制区域滑动。
+
+问题3：登录二维码显示不全
+原因
+fragment_login.xml 中二维码 ImageView 固定 300dp，但父布局 CardView 使用 wrap_content，在某些设备上可能被压缩。同时扫码区域可能太小。
+
+修改方案
+修改 fragment_login.xml
+xml
+<!-- 将 CardView 的宽度改为 match_parent，并限制最大宽度 -->
+<androidx.cardview.widget.CardView
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="48dp"
+    app:cardBackgroundColor="@color/background_card"
+    app:cardCornerRadius="16dp"
+    android:layout_margin="32dp">
+
+    <ImageView
+        android:id="@+id/qr_code_image"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:maxWidth="400dp"
+        android:maxHeight="400dp"
+        android:padding="16dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="QR Code" />
+
+</androidx.cardview.widget.CardView>
+同时，在 LoginFragment.kt 中生成二维码时，尺寸可以动态调整为屏幕宽度的 70%：
+
+kotlin
+val size = (resources.displayMetrics.widthPixels * 0.7).toInt().coerceAtMost(500)
+val bitmap = barcodeEncoder.encodeBitmap(
+    qrCode.data.url,
+    com.google.zxing.BarcodeFormat.QR_CODE,
+    size,
+    size
+)
+这样二维码会自适应屏幕大小，不会超出显示区域。
+
+完整修改文件汇总
+你需要修改以下两个文件：
+
+PlayerFragment.kt：增加按键处理、OK键播放/暂停、手势滑动。
+
+fragment_login.xml 和 LoginFragment.kt：调整二维码布局和尺寸。
+
+我已经将修改后的完整代码片段附上，请直接替换对应方法或添加新方法。
