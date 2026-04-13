@@ -36,7 +36,16 @@ jobs:
         with:
           gradle-version: '8.5'
 
-      # ⚠️ 修改这里：assembleFreeDebug → assembleDebug
+      # ✅ 新增步骤：移除 gradle.properties 中硬编码的 Java Home 配置
+      - name: Remove hardcoded Java home in gradle.properties
+        run: |
+          if [ -f gradle.properties ]; then
+            sed -i '/org.gradle.java.home/d' gradle.properties
+            echo "✅ Removed org.gradle.java.home from gradle.properties"
+          else
+            echo "ℹ️ No gradle.properties file found, skipping."
+          fi
+
       - name: Build APK
         run: gradle assembleDebug --stacktrace --no-daemon
 
