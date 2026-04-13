@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    tools:context=".screens.category.CategoryFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 标题栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="16dp"
+            android:background="@color/surface">
+
+            <TextView
+                android:id="@+id/back_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="← 返回"
+                android:textColor="@color/text_primary"
+                android:textSize="16sp"
+                android:padding="8dp" />
+
+            <TextView
+                android:id="@+id/category_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="16dp"
+                android:text="分类"
+                android:textColor="@color/text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- 分类横向列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/category_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="8dp"
+            android:clipToPadding="false"
+            android:background="@color/surface" />
+
+        <!-- 分隔线 -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <!-- 视频网格 -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/video_grid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="8dp"
+                android:clipToPadding="false"
+                android:visibility="visible" />
+
+            <!-- 空视图 -->
+            <TextView
+                android:id="@+id/empty_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="暂无视频"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp"
+                android:visibility="gone" />
+
+            <!-- 加载指示器 -->
+            <ProgressBar
+                android:id="@+id/loading_progress"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:visibility="gone"
+                android:indeterminateTint="@color/primary" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</FrameLayout>
